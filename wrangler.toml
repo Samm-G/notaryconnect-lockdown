@@ -1,6 +1,5 @@
 name = "notaryconnect-lockdown"
 pages_build_output_dir = "dist"
-assets = { directory = "./dist" }
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -9,7 +8,10 @@ ENVIRONMENT = "production"
 APP_NAME = "NotaryConnect Lockdown Utility"
 APP_DOMAIN = "law.kroldon.app"
 JURISDICTION = "IN"
+VITE_MAX_PAGE_COUNT = "15"
+VITE_MAX_FILE_SIZE_MB = "50"
 
+# Production Cloudflare R2 Bucket Binding
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "kroldon-notary-audit"
