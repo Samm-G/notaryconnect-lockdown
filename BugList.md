@@ -6,7 +6,11 @@ Changes:
   - Move the "Lockdown v0.1.0" to the footer of the page.
   - Remove the "law.kroldon.app".
   - Remove the Edge Ready badge in the top right.
+- Make sure the popular Phone OS OCRs (Oppo, Vivo, Samsumg, Redmi, Apple) also do not work on the text.
+- Make sure text isnt selectable in most of the text editors. (generally used with Windows, Mac and Linux OS).
 
+
+  
 COMMANDS:
 
       npm install
