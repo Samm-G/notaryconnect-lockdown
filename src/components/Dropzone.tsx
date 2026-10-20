@@ -12,7 +12,11 @@ import {
     RefreshCw,
 } from 'lucide-react';
 import type { DocumentValidationResult, ProcessingOptions } from '../types/document';
-import { validateDocument } from '../utils/documentValidator';
+import {
+    validateDocument,
+    MAX_PAGE_COUNT,
+    MAX_FILE_SIZE_MB,
+} from '../utils/documentValidator';
 
 interface DropzoneProps {
     onDocumentAccepted: (validation: DocumentValidationResult, options: ProcessingOptions) => void;
@@ -23,7 +27,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
     const [isValidating, setIsValidating] = useState(false);
     const [validation, setValidation] = useState<DocumentValidationResult | null>(null);
 
-    // Configuration options with requested defaults
     const [applyWatermark, setApplyWatermark] = useState(true);
     const [qualityMode, setQualityMode] = useState<'compressed' | 'full'>('compressed');
 
@@ -86,7 +89,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
 
     return (
         <div className="space-y-6">
-            {/* Drag-and-Drop Area */}
             {!validation?.valid && (
                 <div
                     onDragOver={handleDragOver}
@@ -121,14 +123,13 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                     </p>
 
                     <div className="mt-5 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-[11px] text-zinc-300 font-mono">
-                        <span>Limit: &le; 5 Pages</span>
+                        <span>Limit: &le; {MAX_PAGE_COUNT} Pages</span>
                         <span>&bull;</span>
-                        <span>&le; 25 MB</span>
+                        <span>&le; {MAX_FILE_SIZE_MB} MB</span>
                     </div>
                 </div>
             )}
 
-            {/* Validation Error Banner */}
             {validation && !validation.valid && (
                 <div className="p-4 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start justify-between gap-3 animate-fadeIn">
                     <div className="flex items-start gap-2.5">
@@ -147,7 +148,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                 </div>
             )}
 
-            {/* Valid Document Ingestion Preview Card */}
             {validation && validation.valid && validation.file && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5 animate-fadeIn">
                     <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
@@ -165,11 +165,18 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                                     </span>
                                     <span>&bull;</span>
                                     <span>{validation.fileSizeMb} MB</span>
-                                    {validation.pageCount !== null && (
+                                    {validation.pageCount !== null ? (
                                         <>
                                             <span>&bull;</span>
                                             <span className="text-emerald-400 font-semibold">
-                                                {validation.pageCount} / 5 Pages Verified
+                                                {validation.pageCount} / {MAX_PAGE_COUNT} Pages Verified
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>&bull;</span>
+                                            <span className="text-notary-yellow">
+                                                Pages evaluated on normalization (&le; {MAX_PAGE_COUNT})
                                             </span>
                                         </>
                                     )}
@@ -186,7 +193,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                         </button>
                     </div>
 
-                    {/* Configuration Options Panel */}
                     <div className="space-y-4 pt-1">
                         <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
                             <Sliders className="w-4 h-4 text-notary-yellow" />
@@ -194,7 +200,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Option 1: Watermark Checkbox */}
                             <div
                                 onClick={() => setApplyWatermark(!applyWatermark)}
                                 className={`p-3.5 rounded-lg border cursor-pointer select-none transition-all ${applyWatermark
@@ -221,7 +226,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                                 </div>
                             </div>
 
-                            {/* Option 2: Full Resolution vs Compressed Toggle */}
                             <div className="p-3.5 rounded-lg bg-zinc-900/80 border border-zinc-800 space-y-2">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
@@ -259,7 +263,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                         </div>
                     </div>
 
-                    {/* Action Trigger */}
                     <div className="pt-2">
                         <button
                             onClick={handleProceed}
@@ -273,7 +276,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                 </div>
             )}
 
-            {/* Pre-Processing Informational Notice */}
             <div className="p-3.5 rounded-lg bg-zinc-900/40 border border-zinc-800 flex items-start gap-2.5 text-xs text-notary-muted">
                 <AlertTriangle className="w-4 h-4 text-notary-yellow shrink-0 mt-0.5" />
                 <p>

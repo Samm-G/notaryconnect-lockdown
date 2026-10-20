@@ -6,7 +6,6 @@ Changes:
   - Move the "Lockdown v0.1.0" to the footer of the page.
   - Remove the "law.kroldon.app".
   - Remove the Edge Ready badge in the top right.
-- Increase the documents limit to 15 pages (50MB).
 
 COMMANDS:
 

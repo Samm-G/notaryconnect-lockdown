@@ -1,12 +1,11 @@
 import { PDFDocument } from 'pdf-lib';
 import type { DocumentValidationResult, SupportedFormat } from '../types/document';
 
-const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
-const MAX_PAGE_COUNT = 5;
+// Configurable operational limits with defaults (15 pages, 50 MB)
+export const MAX_PAGE_COUNT = Number(import.meta.env.VITE_MAX_PAGE_COUNT) || 15;
+export const MAX_FILE_SIZE_MB = Number(import.meta.env.VITE_MAX_FILE_SIZE_MB) || 50;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-/**
- * Sniffs format from extension and MIME type.
- */
 export function detectFormat(file: File): SupportedFormat {
     const name = file.name.toLowerCase();
     const type = file.type.toLowerCase();
@@ -27,14 +26,11 @@ export function detectFormat(file: File): SupportedFormat {
     return 'unsupported';
 }
 
-/**
- * Validates file size, format, and page count before processing.
- */
 export async function validateDocument(file: File): Promise<DocumentValidationResult> {
     const fileSizeMb = Number((file.size / (1024 * 1024)).toFixed(2));
     const format = detectFormat(file);
 
-    // 1. Guardrail: 25 MB Size Bound
+    // 1. Configurable File Size Guardrail
     if (file.size > MAX_FILE_SIZE_BYTES) {
         return {
             valid: false,
@@ -42,12 +38,12 @@ export async function validateDocument(file: File): Promise<DocumentValidationRe
             format,
             pageCount: null,
             fileSizeMb,
-            error: `File size exceeds the 25 MB limit (Detected: ${fileSizeMb} MB). Please compress or reduce image resolution.`,
+            error: `File size exceeds the ${MAX_FILE_SIZE_MB} MB limit (Detected: ${fileSizeMb} MB). Please reduce file size.`,
             warning: null,
         };
     }
 
-    // 2. Guardrail: Format Validation
+    // 2. Format Guardrail
     if (format === 'unsupported') {
         return {
             valid: false,
@@ -60,7 +56,7 @@ export async function validateDocument(file: File): Promise<DocumentValidationRe
         };
     }
 
-    // 3. Guardrail: Legacy .doc Interception (FRD Exception Handling)
+    // 3. Legacy .doc Interception
     if (format === 'doc') {
         return {
             valid: false,
@@ -73,11 +69,10 @@ export async function validateDocument(file: File): Promise<DocumentValidationRe
         };
     }
 
-    // 4. Guardrail: PDF Page Count Pre-Flight Check (<= 5 pages)
+    // 4. Configurable Page Count Guardrail (PDF)
     if (format === 'pdf') {
         try {
             const arrayBuffer = await file.arrayBuffer();
-            // Fast parsing without font decompression
             const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
             const pageCount = pdfDoc.getPageCount();
 
@@ -88,7 +83,7 @@ export async function validateDocument(file: File): Promise<DocumentValidationRe
                     format,
                     pageCount,
                     fileSizeMb,
-                    error: `Document exceeds the 5-page limit for standard notary lockdown (Detected: ${pageCount} pages). Please split the document.`,
+                    error: `Document exceeds the ${MAX_PAGE_COUNT}-page limit for standard notary lockdown (Detected: ${pageCount} pages). Please split the document.`,
                     warning: null,
                 };
             }
@@ -115,12 +110,12 @@ export async function validateDocument(file: File): Promise<DocumentValidationRe
         }
     }
 
-    // 5. For modern .docx, page count is finalized during rendering
+    // 5. For modern .docx, format & size are validated; page count is enforced in Task 3.2 normalizer
     return {
         valid: true,
         file,
         format,
-        pageCount: null, // Computed during layout normalization
+        pageCount: null,
         fileSizeMb,
         error: null,
         warning: null,
