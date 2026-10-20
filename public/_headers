@@ -1,0 +1,25 @@
+/*
+  # Transport & SSL Enforcement (HSTS)
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+  # MIME Sniffing Defense
+  X-Content-Type-Options: nosniff
+
+  # Clickjacking Defense (Prohibit iframe embedding)
+  X-Frame-Options: DENY
+
+  # Cross-Site Scripting (XSS) Legacy Protection
+  X-XSS-Protection: 1; mode=block
+
+  # Referrer Policy (Zero referrer leak across origins)
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Hardware & Feature Access Restriction
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), browsing-topics=()
+
+  # Cross-Origin Policies
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+
+  # Zero-Trust Content Security Policy (Allows WASM & Blob URLs for Canvas rendering)
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.kroldon.app https://*.r2.cloudflarestorage.com; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';

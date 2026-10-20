@@ -1,0 +1,20 @@
+name = "notaryconnect-lockdown"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+APP_NAME = "NotaryConnect Lockdown Utility"
+APP_DOMAIN = "law.kroldon.app"
+JURISDICTION = "IN"
+
+# Cloudflare R2 Bucket Binding for WORM Audit Trail
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "kroldon-notary-audit"
+
+# Cloudflare KV Binding for IP Rate Limiting & Auth Lockouts
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "RATE_LIMIT_KV_ID_PLACEHOLDER"

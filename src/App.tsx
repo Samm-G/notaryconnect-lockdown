@@ -1,5 +1,4 @@
-import React from 'react';
-import { ShieldCheck, Lock, FileText } from 'lucide-react';
+import { ShieldCheck, Lock } from 'lucide-react';
 
 export default function App() {
     return (
@@ -11,7 +10,7 @@ export default function App() {
                     </div>
                     <div>
                         <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                            NotaryConnect <span className="text-notary-yellow text-xs font-mono uppercase px-2 py-0.5 rounded bg-notary-yellow/10 border border-notary-yellow/30">Lockdown v1.0</span>
+                            NotaryConnect <span className="text-notary-yellow text-xs font-mono uppercase px-2 py-0.5 rounded bg-notary-yellow/10 border border-notary-yellow/30">Lockdown v0.1.0</span>
                         </h1>
                         <p className="text-xs text-notary-muted">law.kroldon.app • Internal Legal Ingestion Pipeline</p>
                     </div>
@@ -31,7 +30,7 @@ export default function App() {
                     </div>
                     <h2 className="text-lg font-semibold text-white">System Initialization Active</h2>
                     <p className="text-sm text-notary-muted mt-1">
-                        Task 1.1 Complete. Ready for Cloudflare Bindings and Cryptographic Seed Configuration.
+                        Task 1.2 Complete. Cloudflare Edge Bindings & Declarative Headers configured.
                     </p>
                 </div>
 
