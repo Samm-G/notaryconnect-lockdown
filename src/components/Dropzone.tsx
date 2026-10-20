@@ -17,6 +17,8 @@ import {
     MAX_PAGE_COUNT,
     MAX_FILE_SIZE_MB,
 } from '../utils/documentValidator';
+import { inspectDocumentMetrics, DocumentMetrics } from '../utils/documentInspector';
+import DocumentMetricsCard from './DocumentMetricsCard';
 import { useToast } from '../context/ToastContext';
 
 interface DropzoneProps {
@@ -27,6 +29,7 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [isValidating, setIsValidating] = useState(false);
     const [validation, setValidation] = useState<DocumentValidationResult | null>(null);
+    const [metrics, setMetrics] = useState<DocumentMetrics | null>(null);
 
     const [applyWatermark, setApplyWatermark] = useState(true);
     const [qualityMode, setQualityMode] = useState<'compressed' | 'full'>('compressed');
@@ -37,9 +40,15 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
     const processFile = async (file: File) => {
         setIsValidating(true);
         setValidation(null);
+        setMetrics(null);
         try {
             const result = await validateDocument(file);
             setValidation(result);
+
+            if (result.valid) {
+                const detectedMetrics = await inspectDocumentMetrics(file);
+                setMetrics(detectedMetrics);
+            }
         } finally {
             setIsValidating(false);
         }
@@ -65,7 +74,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
         const files = e.dataTransfer.files;
         if (!files || files.length === 0) return;
 
-        // Guardrail: Intercept Multi-File Drops
         if (files.length > 1) {
             showToast({
                 type: 'warning',
@@ -95,6 +103,7 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
 
     const handleReset = () => {
         setValidation(null);
+        setMetrics(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -208,6 +217,11 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                             <RefreshCw className="w-4 h-4" />
                         </button>
                     </div>
+
+                    {/* Pre-Flight Document Layout & Raster Inspection Card */}
+                    {metrics && (
+                        <DocumentMetricsCard metrics={metrics} qualityMode={qualityMode} />
+                    )}
 
                     <div className="space-y-4 pt-1">
                         <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
