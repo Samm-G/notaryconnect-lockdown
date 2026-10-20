@@ -1,0 +1,39 @@
+# === Environment & Secrets ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+
+# === Provisioning Artifacts & QR Codes ===
+totp-enrollment-qr.png
+totp_secret.txt
+credentials.json
+
+# === Cloudflare & Runtime Artifacts ===
+.wrangler/
+.mf/
+dist/
+.cache/
+
+# === Node & Dependencies ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === Python uv Environment ===
+.venv/
+__pycache__/
+*.pyc
+
+# === Operating System & IDE ===
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
