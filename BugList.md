@@ -51,3 +51,12 @@ Phase 3: Word Conversion, Watermarking & 300 DPI Rasterization Engine:
 
       Task 3.4: Real-Time Pipeline Telemetry & RAM Sanitization
 
+Phase 4: PAdES Digital Signing & Atomic Cloudflare R2 Dual-Archival
+
+      Task 4.1: Cryptographic PAdES Digital Signing Engine on Edge (functions/utils/pades-signer.ts)
+
+      Task 4.2: WORM R2 Dual-Archival & Audit Manifest Service (functions/utils/r2-archiver.ts)
+
+      Task 4.3: Atomic Ingestion & Signing Endpoint (functions/api/archive.ts)
+
+      Task 4.4: Frontend Integration & Telemetry Card
