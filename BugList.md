@@ -81,3 +81,13 @@ Phase 5: Frontend Drag-and-Drop UI, Real-Time Telemetry & Downloader Polish
       Task 5.3: Session Countdown 5-Minute Warning & Graceful Lockout Handler
 
       Task 5.4: Downloader Polish, Final Responsiveness & Memory Sanitization
+
+Phase 6: Security Auditing, Legal UAT & Production Cutover
+
+      Task 6.1: Comprehensive Automated Audit & Test Runner (scripts/run_audit_suite.ts)
+
+      Task 6.2: Hidden Administrative Chain of Custody Inspector Modal (UI)
+
+      Task 6.3: R2 Data Stats & Compliance Backup Extraction Utility (scripts/r2_data_extractor.ts)
+
+      Task 6.4: Cloudflare Production Deployment & DNS Cutover Runbook
