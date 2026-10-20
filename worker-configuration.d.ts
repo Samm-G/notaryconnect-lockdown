@@ -1,9 +1,12 @@
-import type { R2Bucket, KVNamespace } from '@cloudflare/workers-types';
+import type { R2Bucket, KVNamespace, Fetcher } from '@cloudflare/workers-types';
 
 export interface Env {
     // Cloudflare Storage Bindings
     R2_BUCKET: R2Bucket;
     RATE_LIMIT_KV: KVNamespace;
+
+    // Cloudflare Pages Static Asset Fetcher
+    ASSETS?: Fetcher;
 
     // Environment Variables
     ENVIRONMENT: string;
