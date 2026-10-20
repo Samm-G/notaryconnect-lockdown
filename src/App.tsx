@@ -9,6 +9,7 @@ import type { DocumentValidationResult, ProcessingOptions, AuditReceipt } from '
 import type { PipelineTelemetryState } from './types/telemetry';
 import { executeDocumentLockdown } from './utils/rasterEngine';
 import { useGlobalDropTrap } from './hooks/useGlobalDropTrap';
+import { useToast } from './context/ToastContext';
 import { Loader2, ShieldAlert } from 'lucide-react';
 
 export default function App() {
@@ -17,18 +18,17 @@ export default function App() {
     const [secondsRemaining, setSecondsRemaining] = useState(0);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    // External dropped file (when dropped anywhere on window)
     const [externalFile, setExternalFile] = useState<File | null>(null);
 
-    // Transformation & Archival state machine
     const [isProcessing, setIsProcessing] = useState(false);
     const [telemetry, setTelemetry] = useState<PipelineTelemetryState | null>(null);
     const [receipt, setReceipt] = useState<AuditReceipt | null>(null);
     const [pipelineError, setPipelineError] = useState<string | null>(null);
 
     const abortControllerRef = useRef<AbortController | null>(null);
+    const hasWarnedExpiryRef = useRef<boolean>(false);
+    const { showToast } = useToast();
 
-    // Global window drop listener: allows dropping anywhere on screen
     const { isWindowDragging } = useGlobalDropTrap({
         isEnabled: isAuthenticated && !isProcessing && !receipt,
         onFileDrop: (file: File) => {
@@ -43,6 +43,7 @@ export default function App() {
             if (data.authenticated && data.secondsRemaining && data.secondsRemaining > 0) {
                 setIsAuthenticated(true);
                 setSecondsRemaining(data.secondsRemaining);
+                hasWarnedExpiryRef.current = false;
             } else {
                 setIsAuthenticated(false);
                 setSecondsRemaining(0);
@@ -58,22 +59,53 @@ export default function App() {
         verifySession();
     }, [verifySession]);
 
+    // Session countdown ticker with 5-minute warning & auto-lockout
     useEffect(() => {
         if (!isAuthenticated || secondsRemaining <= 0) return;
 
         const interval = setInterval(() => {
             setSecondsRemaining((prev) => {
+                // Trigger 5-Minute Warning Toast (exactly once)
+                if (prev <= 300 && prev > 1 && !hasWarnedExpiryRef.current) {
+                    hasWarnedExpiryRef.current = true;
+                    showToast({
+                        type: 'warning',
+                        title: 'Session Expiring Soon',
+                        message: 'Your session will expire in 5 minutes. Please complete active work.',
+                    });
+                }
+
+                // Graceful 0-Second Lockout Handler
                 if (prev <= 1) {
                     clearInterval(interval);
+
+                    // 1. Abort active processing & flush RAM
+                    if (abortControllerRef.current) {
+                        abortControllerRef.current.abort();
+                    }
+                    setIsProcessing(false);
+                    setTelemetry(null);
+                    setReceipt(null);
+                    setExternalFile(null);
+
+                    // 2. Alert user
+                    showToast({
+                        type: 'error',
+                        title: 'Session Expired',
+                        message: 'Your 24-hour session has concluded. Please re-authenticate to continue.',
+                    });
+
+                    // 3. Lock out to LoginView
                     setIsAuthenticated(false);
                     return 0;
                 }
+
                 return prev - 1;
             });
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [isAuthenticated, secondsRemaining]);
+    }, [isAuthenticated, secondsRemaining, showToast]);
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
@@ -347,7 +379,7 @@ export default function App() {
                 )}
             </main>
 
-            {/* Footer (Version and confidentiality notice) */}
+            {/* Footer */}
             <footer className="max-w-4xl w-full mx-auto text-center border-t border-zinc-900 pt-4 pb-2">
                 <p className="text-xs text-zinc-600 font-mono">
                     NotaryConnect Lockdown v0.1.0 &bull; Strictly Confidential Legal Operations

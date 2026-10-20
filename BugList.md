@@ -2,7 +2,7 @@
 Changes:
 
 FRONTEND CHANGES:
-- Make changes in the frontend not to overwhelm the paralegalswith technical information.
+- Make changes in the frontend not to overwhelm the paralegals with technical information.
 For example:
   - After conversion: Hide the "Cryptographic Checksums (SHA-256)" and "R2 Compliance Trail Committed:" sections inside info element (however required). Keep the "AUDIT ID: ..." visible.
 - Change the page layout minimalist, flat style and simple.
