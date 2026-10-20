@@ -4,6 +4,8 @@ export type PipelineStage =
     | 'rasterizing'
     | 'burning_watermark'
     | 'assembling'
+    | 'signing'
+    | 'archiving'
     | 'completed'
     | 'error';
 

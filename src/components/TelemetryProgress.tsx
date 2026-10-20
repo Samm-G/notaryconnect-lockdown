@@ -1,4 +1,4 @@
-import { Loader2, CheckCircle2, Shield, Stamp, FileCheck } from 'lucide-react';
+import { Loader2, CheckCircle2, Shield, Stamp, FileCheck, KeyRound, HardDrive } from 'lucide-react';
 import type { PipelineTelemetryState } from '../types/telemetry';
 
 interface TelemetryProgressProps {
@@ -17,24 +17,36 @@ export default function TelemetryProgress({
             id: 'norm',
             label: 'Layout Normalization',
             active: telemetry.stage === 'normalizing',
-            done: ['rasterizing', 'burning_watermark', 'assembling', 'completed'].includes(telemetry.stage),
+            done: ['rasterizing', 'burning_watermark', 'assembling', 'signing', 'archiving', 'completed'].includes(telemetry.stage),
         },
         {
             id: 'raster',
             label: `300 DPI Rasterization ${telemetry.totalPages > 0 ? `(${telemetry.currentPage}/${telemetry.totalPages})` : ''}`,
             active: telemetry.stage === 'rasterizing',
-            done: ['burning_watermark', 'assembling', 'completed'].includes(telemetry.stage),
+            done: ['burning_watermark', 'assembling', 'signing', 'archiving', 'completed'].includes(telemetry.stage),
         },
         {
             id: 'wm',
             label: 'Watermark Burn-In',
             active: telemetry.stage === 'burning_watermark',
-            done: ['assembling', 'completed'].includes(telemetry.stage),
+            done: ['assembling', 'signing', 'archiving', 'completed'].includes(telemetry.stage),
         },
         {
             id: 'pack',
-            label: 'Vector Eradication & Assembly',
+            label: 'Vector Eradication',
             active: telemetry.stage === 'assembling',
+            done: ['signing', 'archiving', 'completed'].includes(telemetry.stage),
+        },
+        {
+            id: 'sign',
+            label: 'PAdES Digital Seal (X.509)',
+            active: telemetry.stage === 'signing',
+            done: ['archiving', 'completed'].includes(telemetry.stage),
+        },
+        {
+            id: 'r2',
+            label: 'WORM R2 Compliance Archival',
+            active: telemetry.stage === 'archiving',
             done: telemetry.stage === 'completed',
         },
     ];
@@ -51,17 +63,20 @@ export default function TelemetryProgress({
                             {fileName}
                         </h3>
                         <p className="text-xs text-notary-muted font-mono mt-0.5">
-                            Anti-Tampering 300 DPI Pipeline In Progress
+                            Lockdown Pipeline &amp; Compliance Seal In Progress
                         </p>
                     </div>
                 </div>
 
-                <button
-                    onClick={onCancel}
-                    className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-medium cursor-pointer transition-colors"
-                >
-                    Cancel
-                </button>
+                {/* Cancel only allowed during client-side rendering before server-side archival */}
+                {['normalizing', 'rasterizing', 'burning_watermark', 'assembling'].includes(telemetry.stage) && (
+                    <button
+                        onClick={onCancel}
+                        className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-medium cursor-pointer transition-colors"
+                    >
+                        Cancel
+                    </button>
+                )}
             </div>
 
             {/* Progress Bar */}
@@ -72,22 +87,22 @@ export default function TelemetryProgress({
                 </div>
                 <div className="w-full h-2.5 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800 p-0.5">
                     <div
-                        className="h-full bg-gradient-to-r from-notary-yellow to-notary-gold rounded-full transition-all duration-200"
+                        className="h-full bg-gradient-to-r from-notary-yellow to-notary-gold rounded-full transition-all duration-300"
                         style={{ width: `${Math.min(100, Math.max(5, telemetry.percentage))}%` }}
                     />
                 </div>
             </div>
 
             {/* Granular Pipeline Steps */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
                 {steps.map((step) => (
                     <div
                         key={step.id}
-                        className={`p-3 rounded-lg border text-xs flex items-center gap-2.5 transition-all ${step.active
-                            ? 'bg-notary-badge/30 border-notary-yellow/50 text-white shadow-sm'
-                            : step.done
-                                ? 'bg-zinc-900/60 border-zinc-800 text-zinc-300'
-                                : 'bg-zinc-950/40 border-zinc-800/60 text-zinc-500'
+                        className={`p-2.5 rounded-lg border text-xs flex items-center gap-2.5 transition-all ${step.active
+                                ? 'bg-notary-badge/30 border-notary-yellow/50 text-white shadow-sm'
+                                : step.done
+                                    ? 'bg-zinc-900/60 border-zinc-800 text-zinc-300'
+                                    : 'bg-zinc-950/40 border-zinc-800/60 text-zinc-500'
                             }`}
                     >
                         {step.done ? (
@@ -103,14 +118,22 @@ export default function TelemetryProgress({
             </div>
 
             {/* Active Security Guarantees */}
-            <div className="p-3 rounded-lg bg-zinc-950/70 border border-zinc-800/80 flex items-center justify-between text-[11px] text-notary-muted font-mono">
+            <div className="p-3 rounded-lg bg-zinc-950/70 border border-zinc-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-notary-muted font-mono">
                 <div className="flex items-center gap-1.5">
                     <Stamp className="w-3.5 h-3.5 text-notary-yellow" />
-                    <span>Resolution: 300 DPI</span>
+                    <span>300 DPI</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Vector Eradication: Enforced</span>
+                    <span>Non-Selectable</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-notary-yellow" />
+                    <span>PAdES Seal</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <HardDrive className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>R2 WORM</span>
                 </div>
             </div>
         </div>

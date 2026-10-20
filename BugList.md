@@ -9,6 +9,10 @@ Changes:
 - Make sure the popular Phone OS OCRs (Oppo, Vivo, Samsumg, Redmi, Apple) also do not work on the text.
 - Make sure text isnt selectable in most of the text editors. (generally used with Windows, Mac and Linux OS).
 
+- Make changes in the frontend not to overwhelm the paralegalswith technical information.
+For example:
+  - After conversion: Hide the "Cryptographic Checksums (SHA-256)" and "R2 Compliance Trail Committed:" sections inside info element (however required).
+  - 
 
   
 COMMANDS:

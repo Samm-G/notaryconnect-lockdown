@@ -3,11 +3,12 @@ import Header from './components/Header';
 import LoginView from './components/LoginView';
 import Dropzone from './components/Dropzone';
 import TelemetryProgress from './components/TelemetryProgress';
+import ComplianceReceipt from './components/ComplianceReceipt';
 import type { SessionData } from './types/auth';
-import type { DocumentValidationResult, ProcessingOptions } from './types/document';
+import type { DocumentValidationResult, ProcessingOptions, AuditReceipt } from './types/document';
 import type { PipelineTelemetryState } from './types/telemetry';
-import { executeDocumentLockdown, RasterResult } from './utils/rasterEngine';
-import { Loader2, CheckCircle2, Download, RefreshCw, ShieldAlert, HardDrive } from 'lucide-react';
+import { executeDocumentLockdown } from './utils/rasterEngine';
+import { Loader2, ShieldAlert } from 'lucide-react';
 
 export default function App() {
     const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -15,13 +16,10 @@ export default function App() {
     const [secondsRemaining, setSecondsRemaining] = useState(0);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    // Transformation state machine
+    // Transformation & Archival state machine
     const [isProcessing, setIsProcessing] = useState(false);
     const [telemetry, setTelemetry] = useState<PipelineTelemetryState | null>(null);
-    const [processedResult, setProcessedResult] = useState<{
-        result: RasterResult;
-        originalFile: File;
-    } | null>(null);
+    const [receipt, setReceipt] = useState<AuditReceipt | null>(null);
     const [pipelineError, setPipelineError] = useState<string | null>(null);
 
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -79,7 +77,7 @@ export default function App() {
         }
     };
 
-    // Pipeline Execution Trigger
+    // Atomic Pipeline Execution: Render &rarr; PAdES Sign &rarr; R2 Archival &rarr; Direct Download
     const handleDocumentAccepted = async (
         validation: DocumentValidationResult,
         options: ProcessingOptions
@@ -88,7 +86,7 @@ export default function App() {
 
         setIsProcessing(true);
         setPipelineError(null);
-        setProcessedResult(null);
+        setReceipt(null);
 
         const abortController = new AbortController();
         abortControllerRef.current = abortController;
@@ -103,7 +101,8 @@ export default function App() {
         });
 
         try {
-            const result = await executeDocumentLockdown(
+            // 1. Client-Side 300 DPI Rasterization & Watermark Burn-in
+            const rasterResult = await executeDocumentLockdown(
                 validation.file,
                 options,
                 (stage, cur, total, percent, msg) => {
@@ -111,7 +110,7 @@ export default function App() {
                         stage,
                         currentPage: cur,
                         totalPages: total,
-                        percentage: percent,
+                        percentage: Math.min(85, Math.max(5, percent)),
                         detailMessage: msg,
                         error: null,
                     });
@@ -119,15 +118,115 @@ export default function App() {
                 abortController.signal
             );
 
-            setProcessedResult({
-                result,
-                originalFile: validation.file,
+            // 2. Server-Side PAdES Sealing Stage Telemetry
+            setTelemetry({
+                stage: 'signing',
+                currentPage: rasterResult.pageCount,
+                totalPages: rasterResult.pageCount,
+                percentage: 88,
+                detailMessage: 'Cryptographically sealing with firm certificate (PAdES Part 2)...',
+                error: null,
+            });
+
+            // 3. Construct Multipart Payload for Edge Archival
+            const formData = new FormData();
+            formData.append('originalFile', validation.file);
+            formData.append(
+                'lockedPdf',
+                new Blob([rasterResult.lockedPdfBytes as Uint8Array<ArrayBuffer>], {
+                    type: 'application/pdf',
+                }),
+                'locked.pdf'
+            );
+            formData.append('pageCount', String(rasterResult.pageCount));
+            formData.append('watermarkApplied', String(options.applyWatermark));
+            formData.append('qualityMode', options.qualityMode);
+
+            // 4. Server-Side R2 Archival Telemetry
+            setTelemetry({
+                stage: 'archiving',
+                currentPage: rasterResult.pageCount,
+                totalPages: rasterResult.pageCount,
+                percentage: 94,
+                detailMessage: 'Dual-archiving to kroldon-notary-audit compliance vault...',
+                error: null,
+            });
+
+            // 5. Atomic Request to /api/archive
+            const response = await fetch('/api/archive', {
+                method: 'POST',
+                body: formData,
+                signal: abortController.signal,
+            });
+
+            if (!response.ok) {
+                let errMessage = 'Archival failed.';
+                try {
+                    const errData = await response.json();
+                    errMessage = errData.message || errData.error || errMessage;
+                } catch {
+                    // Response body was not JSON
+                }
+                throw new Error(errMessage);
+            }
+
+            // 6. Capture Compliance Headers
+            const auditId = response.headers.get('X-Audit-ID') || crypto.randomUUID();
+            const sha256Orig = response.headers.get('X-Audit-SHA256-Original') || 'N/A';
+            const sha256Final = response.headers.get('X-Audit-SHA256-Final') || 'N/A';
+            const manifestKey = response.headers.get('X-Audit-Manifest-Key') || 'N/A';
+
+            const cleanBaseName = validation.file.name
+                .replace(/[^a-zA-Z0-9._-]/g, '_')
+                .replace(/\.[^/.]+$/, '');
+            const downloadFileName = `${cleanBaseName}_LOCKED_NOTARY.pdf`;
+
+            // 7. Receive Signed PDF Blob
+            const signedPdfBlob = await response.blob();
+
+            const newReceipt: AuditReceipt = {
+                auditId,
+                sha256Original: sha256Orig,
+                sha256Final: sha256Final,
+                manifestKey,
+                downloadFileName,
+                signedPdfBlob,
+                originalFileName: validation.file.name,
+                pageCount: rasterResult.pageCount,
+                watermarkApplied: options.applyWatermark,
+                qualityMode: options.qualityMode,
+                timestamp: new Date().toISOString(),
+            };
+
+            setReceipt(newReceipt);
+
+            // 8. Auto-Trigger Immediate Browser Download (Atomic Gate Fulfilled)
+            const blobUrl = URL.createObjectURL(signedPdfBlob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = blobUrl;
+            downloadLink.download = downloadFileName;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+
+            // RAM sanitation
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 200);
+
+            setTelemetry({
+                stage: 'completed',
+                currentPage: rasterResult.pageCount,
+                totalPages: rasterResult.pageCount,
+                percentage: 100,
+                detailMessage: 'Document locked, sealed, and archived.',
+                error: null,
             });
         } catch (err: unknown) {
             if (abortController.signal.aborted) {
                 setPipelineError('Lockdown process was cancelled.');
             } else {
-                setPipelineError(err instanceof Error ? err.message : 'Transformation pipeline failed.');
+                setPipelineError(
+                    err instanceof Error ? err.message : 'Transformation and archival pipeline failed.'
+                );
             }
         } finally {
             setIsProcessing(false);
@@ -144,29 +243,21 @@ export default function App() {
     };
 
     const handleReset = () => {
-        setProcessedResult(null);
+        setReceipt(null);
         setTelemetry(null);
         setPipelineError(null);
     };
 
-    const handleDownload = () => {
-        if (!processedResult) return;
-        const { result, originalFile } = processedResult;
-
-        // Explicitly create blob, trigger instant download, and revoke immediately
-        const blob = new Blob([result.lockedPdfBytes as Uint8Array<ArrayBuffer>], {
-            type: 'application/pdf',
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${originalFile.name.replace(/\.[^/.]+$/, '')}_LOCKED_NOTARY.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        // RAM Sanitation
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+    const handleManualDownload = () => {
+        if (!receipt) return;
+        const blobUrl = URL.createObjectURL(receipt.signedPdfBlob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = receipt.downloadFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 200);
     };
 
     if (isCheckingSession) {
@@ -200,25 +291,15 @@ export default function App() {
                         <div className="mb-6 flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-bold text-white tracking-tight">
-                                    Notary Affidavit & Deed Lockdown
+                                    Notary Affidavit &amp; Deed Lockdown
                                 </h2>
                                 <p className="text-xs text-notary-muted mt-0.5">
-                                    Vector eradication, 300 DPI image flattening, and watermark sealing.
+                                    Vector eradication, 300 DPI rasterization, PAdES digital seal &amp; R2 WORM archival.
                                 </p>
                             </div>
-
-                            {processedResult && (
-                                <button
-                                    onClick={handleReset}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-medium cursor-pointer transition-colors"
-                                >
-                                    <RefreshCw className="w-3.5 h-3.5" />
-                                    <span>New Document</span>
-                                </button>
-                            )}
                         </div>
 
-                        {/* Pipeline Error Banner */}
+                        {/* Error Banner */}
                         {pipelineError && (
                             <div className="mb-6 p-4 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center justify-between gap-3 animate-fadeIn">
                                 <div className="flex items-center gap-2.5">
@@ -235,11 +316,11 @@ export default function App() {
                         )}
 
                         {/* State 1: Dropzone (Idle) */}
-                        {!isProcessing && !processedResult && (
+                        {!isProcessing && !receipt && (
                             <Dropzone onDocumentAccepted={handleDocumentAccepted} />
                         )}
 
-                        {/* State 2: Telemetry Active (Processing) */}
+                        {/* State 2: Telemetry Active (Processing: Rasterize &rarr; Sign &rarr; Archive) */}
                         {isProcessing && telemetry && (
                             <TelemetryProgress
                                 telemetry={telemetry}
@@ -248,56 +329,13 @@ export default function App() {
                             />
                         )}
 
-                        {/* State 3: Ready for Download / Prepared for Phase 4 Signing */}
-                        {processedResult && (
-                            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-6 animate-fadeIn">
-                                <div className="flex items-center gap-3 border-b border-zinc-800 pb-4">
-                                    <div className="p-2.5 rounded-lg bg-emerald-950/70 border border-emerald-500/40 text-emerald-400">
-                                        <CheckCircle2 className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-sm font-bold text-white">
-                                            Document Lockdown Complete
-                                        </h3>
-                                        <p className="text-xs text-notary-muted font-mono mt-0.5">
-                                            300 DPI Bitmaps Assembled &bull; Unselectable &bull;{' '}
-                                            {processedResult.result.pageCount} Pages
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-                                    <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800/80 space-y-1">
-                                        <span className="text-zinc-500">WATERMARK STATUS</span>
-                                        <p className="text-zinc-200 font-semibold">
-                                            {processedResult.result.watermarkApplied ? 'Burned (-45°)' : 'Disabled'}
-                                        </p>
-                                    </div>
-                                    <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800/80 space-y-1">
-                                        <span className="text-zinc-500">ENCODING QUALITY</span>
-                                        <p className="text-zinc-200 font-semibold uppercase">
-                                            {processedResult.result.qualityMode === 'compressed'
-                                                ? 'JPEG 85%'
-                                                : 'Lossless PNG'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="p-3.5 rounded-lg bg-notary-badge/20 border border-notary-yellow/30 flex items-start gap-2.5 text-xs text-zinc-300">
-                                    <HardDrive className="w-4 h-4 text-notary-yellow shrink-0 mt-0.5" />
-                                    <p>
-                                        Ready for download. Next, Phase 4 will bind this output to the PAdES cryptographic seal and atomic Cloudflare R2 compliance archival.
-                                    </p>
-                                </div>
-
-                                <button
-                                    onClick={handleDownload}
-                                    className="w-full py-3 px-4 rounded-lg bg-notary-gold hover:bg-notary-hover text-black font-semibold text-sm transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-notary-gold/20"
-                                >
-                                    <Download className="w-4 h-4" />
-                                    <span>Download Locked PDF</span>
-                                </button>
-                            </div>
+                        {/* State 3: Ready State with Verified Compliance Receipt */}
+                        {receipt && (
+                            <ComplianceReceipt
+                                receipt={receipt}
+                                onReset={handleReset}
+                                onDownload={handleManualDownload}
+                            />
                         )}
                     </div>
                 )}
