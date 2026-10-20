@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useToast } from '../context/ToastContext';
 
-export function useGlobalDropTrap() {
+interface UseGlobalDropTrapProps {
+    onFileDrop: (file: File) => void;
+    isEnabled: boolean;
+}
+
+export function useGlobalDropTrap({ onFileDrop, isEnabled }: UseGlobalDropTrapProps) {
     const [isWindowDragging, setIsWindowDragging] = useState(false);
     const { showToast } = useToast();
 
     useEffect(() => {
+        if (!isEnabled) return;
         let dragCounter = 0;
 
         const handleWindowDragOver = (e: DragEvent) => {
@@ -20,7 +26,7 @@ export function useGlobalDropTrap() {
             e.preventDefault();
             e.stopPropagation();
             dragCounter++;
-            if (e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+            if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
                 setIsWindowDragging(true);
             }
         };
@@ -41,17 +47,20 @@ export function useGlobalDropTrap() {
             dragCounter = 0;
             setIsWindowDragging(false);
 
-            // Check if dropped outside an explicit dropzone target
-            const target = e.target as HTMLElement | null;
-            const isInsideDropzone = target?.closest('[data-dropzone="true"]');
+            const files = e.dataTransfer?.files;
+            if (!files || files.length === 0) return;
 
-            if (!isInsideDropzone && e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+            if (files.length > 1) {
                 showToast({
                     type: 'warning',
-                    title: 'Accidental Drop Intercepted',
-                    message: 'Please drop documents directly into the designated upload zone.',
+                    title: 'Single File Only',
+                    message: 'Please drop one affidavit or document at a time.',
                 });
+                return;
             }
+
+            // Ingest the file directly regardless of where it was dropped on screen
+            onFileDrop(files[0]);
         };
 
         window.addEventListener('dragover', handleWindowDragOver);
@@ -65,7 +74,7 @@ export function useGlobalDropTrap() {
             window.removeEventListener('dragleave', handleWindowDragLeave);
             window.removeEventListener('drop', handleWindowDrop);
         };
-    }, [showToast]);
+    }, [isEnabled, onFileDrop, showToast]);
 
     return { isWindowDragging };
 }

@@ -12,14 +12,15 @@ For example:
   - Move the "Lockdown v0.1.0" to the footer of the page.
   - Remove the "law.kroldon.app".
   - Remove the Edge Ready badge in the top right.
-  
+
+BACKEND CHANGES:
+- Make the suffix "_LOCKED_NOTARY" configurable from env. Change it to "_NC"
 
 LATER TESTS PROMPT:
 - Make sure the popular Phone OS OCRs (Oppo, Vivo, Samsumg, Redmi, Apple) also do not work on the text.
 - Make sure text isnt selectable in most of the text editors. (generally used with Windows, Mac and Linux OS).
 
-BACKEND CHANGES:
-- Make the suffix "_LOCKED_NOTARY" configurable from env. Change it to "_NC"
+
   
 COMMANDS:
 

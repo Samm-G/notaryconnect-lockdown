@@ -1,15 +1,13 @@
-import { useState, useRef, DragEvent, ChangeEvent } from 'react';
+import { useState, useRef, DragEvent, ChangeEvent, useEffect } from 'react';
 import {
     UploadCloud,
     FileText,
-    AlertTriangle,
     XCircle,
-    Sliders,
     CheckSquare,
     Square,
-    Layers,
     ArrowRight,
     RefreshCw,
+    Info,
 } from 'lucide-react';
 import type { DocumentValidationResult, ProcessingOptions } from '../types/document';
 import {
@@ -18,14 +16,18 @@ import {
     MAX_FILE_SIZE_MB,
 } from '../utils/documentValidator';
 import { inspectDocumentMetrics, DocumentMetrics } from '../utils/documentInspector';
-import DocumentMetricsCard from './DocumentMetricsCard';
-import { useToast } from '../context/ToastContext';
 
 interface DropzoneProps {
     onDocumentAccepted: (validation: DocumentValidationResult, options: ProcessingOptions) => void;
+    externalDroppedFile?: File | null;
+    onClearExternalFile?: () => void;
 }
 
-export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
+export default function Dropzone({
+    onDocumentAccepted,
+    externalDroppedFile,
+    onClearExternalFile,
+}: DropzoneProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [isValidating, setIsValidating] = useState(false);
     const [validation, setValidation] = useState<DocumentValidationResult | null>(null);
@@ -35,7 +37,6 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
     const [qualityMode, setQualityMode] = useState<'compressed' | 'full'>('compressed');
 
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const { showToast } = useToast();
 
     const processFile = async (file: File) => {
         setIsValidating(true);
@@ -53,6 +54,14 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
             setIsValidating(false);
         }
     };
+
+    // Ingest files dropped anywhere on screen
+    useEffect(() => {
+        if (externalDroppedFile) {
+            processFile(externalDroppedFile);
+            onClearExternalFile?.();
+        }
+    }, [externalDroppedFile]);
 
     const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
@@ -72,18 +81,9 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
         setIsDragging(false);
 
         const files = e.dataTransfer.files;
-        if (!files || files.length === 0) return;
-
-        if (files.length > 1) {
-            showToast({
-                type: 'warning',
-                title: 'Multiple Files Rejected',
-                message: 'Single document lockdown only. Please drop one affidavit or deed at a time.',
-            });
-            return;
+        if (files && files.length > 0) {
+            await processFile(files[0]);
         }
-
-        await processFile(files[0]);
     };
 
     const handleFileInputChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -110,7 +110,8 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
+            {/* Minimalist Flat Drop Area */}
             {!validation?.valid && (
                 <div
                     data-dropzone="true"
@@ -118,9 +119,9 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200 ${isDragging
-                            ? 'border-notary-yellow bg-notary-yellow/10 scale-[1.01] shadow-lg shadow-notary-yellow/10'
-                            : 'border-zinc-700 hover:border-zinc-500 bg-zinc-900/60'
+                    className={`border border-dashed rounded-lg p-8 sm:p-12 text-center cursor-pointer transition-colors ${isDragging
+                            ? 'border-notary-yellow bg-zinc-900'
+                            : 'border-zinc-800 hover:border-zinc-700 bg-zinc-950'
                         }`}
                 >
                     <input
@@ -131,186 +132,135 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                         className="hidden"
                     />
 
-                    <div className="w-16 h-16 mx-auto mb-4 bg-zinc-800/80 border border-zinc-700 rounded-2xl flex items-center justify-center text-notary-yellow shadow-inner">
-                        <UploadCloud className="w-8 h-8" />
+                    <div className="w-12 h-12 mx-auto mb-3 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center justify-center text-notary-yellow">
+                        <UploadCloud className="w-6 h-6" />
                     </div>
 
-                    <h3 className="text-base font-semibold text-white">
-                        Drag &amp; Drop Legal Document Here
-                    </h3>
-                    <p className="text-xs text-notary-muted mt-1.5 max-w-sm mx-auto">
-                        Upload affidavits, deeds, or notary agreements in{' '}
-                        <span className="text-zinc-300 font-mono">.pdf</span>,{' '}
-                        <span className="text-zinc-300 font-mono">.docx</span>, or{' '}
-                        <span className="text-zinc-300 font-mono">.doc</span> format.
+                    <p className="text-sm font-medium text-white">
+                        Drag &amp; drop document anywhere
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                        or <span className="text-notary-yellow hover:underline">browse file</span> from your computer
                     </p>
 
-                    <div className="mt-5 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-800 border border-zinc-700 text-[11px] text-zinc-300 font-mono">
-                        <span>Limit: &le; {MAX_PAGE_COUNT} Pages</span>
-                        <span>&bull;</span>
-                        <span>&le; {MAX_FILE_SIZE_MB} MB</span>
-                        <span>&bull;</span>
-                        <span>Single File Only</span>
-                    </div>
+                    <p className="text-[11px] text-zinc-500 mt-4 font-mono">
+                        Supported: .pdf, .docx &bull; Max {MAX_PAGE_COUNT} pages &bull; Up to {MAX_FILE_SIZE_MB} MB
+                    </p>
                 </div>
             )}
 
+            {/* Validation Error */}
             {validation && !validation.valid && (
-                <div className="p-4 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-start justify-between gap-3 animate-fadeIn">
+                <div className="p-3.5 rounded-lg bg-zinc-950 border border-red-500/40 text-xs flex items-start justify-between gap-3 animate-fadeIn">
                     <div className="flex items-start gap-2.5">
-                        <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                        <div>
-                            <p className="font-semibold text-red-300">Validation Guardrail Triggered</p>
-                            <p className="mt-0.5 leading-relaxed text-red-200/90">{validation.error}</p>
-                        </div>
+                        <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                        <p className="text-zinc-300">{validation.error}</p>
                     </div>
                     <button
                         onClick={handleReset}
-                        className="px-2.5 py-1 rounded bg-red-900/50 hover:bg-red-800/60 border border-red-500/30 text-red-200 font-medium shrink-0 cursor-pointer"
+                        className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs shrink-0 cursor-pointer"
                     >
                         Retry
                     </button>
                 </div>
             )}
 
+            {/* Clean Selected File View */}
             {validation && validation.valid && validation.file && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5 animate-fadeIn">
-                    <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-5 space-y-4 animate-fadeIn">
+                    {/* File Header */}
+                    <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
                         <div className="flex items-center gap-3">
-                            <div className="p-2.5 rounded-lg bg-notary-badge border border-notary-yellow/30 text-notary-yellow">
-                                <FileText className="w-6 h-6" />
+                            <div className="p-2 rounded-md bg-zinc-900 border border-zinc-800 text-notary-yellow">
+                                <FileText className="w-5 h-5" />
                             </div>
-                            <div>
-                                <h4 className="text-sm font-bold text-white tracking-tight truncate max-w-md">
+                            <div className="truncate">
+                                <h4 className="text-sm font-medium text-white truncate max-w-sm sm:max-w-md">
                                     {validation.file.name}
                                 </h4>
-                                <div className="flex items-center gap-2 mt-1 text-xs text-notary-muted font-mono">
-                                    <span className="uppercase px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-300">
-                                        {validation.format}
-                                    </span>
-                                    <span>&bull;</span>
-                                    <span>{validation.fileSizeMb} MB</span>
-                                    {validation.pageCount !== null ? (
-                                        <>
-                                            <span>&bull;</span>
-                                            <span className="text-emerald-400 font-semibold">
-                                                {validation.pageCount} / {MAX_PAGE_COUNT} Pages Verified
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span>&bull;</span>
-                                            <span className="text-notary-yellow">
-                                                Pages evaluated on normalization (&le; {MAX_PAGE_COUNT})
-                                            </span>
-                                        </>
-                                    )}
-                                </div>
+                                <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                                    {validation.fileSizeMb} MB
+                                    {metrics ? ` • ${metrics.paperSizeName} ${metrics.orientation}` : ''}
+                                    {validation.pageCount !== null ? ` • ${validation.pageCount} pages` : ''}
+                                </p>
                             </div>
                         </div>
 
                         <button
                             onClick={handleReset}
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                            className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
                             title="Select different file"
                         >
                             <RefreshCw className="w-4 h-4" />
                         </button>
                     </div>
 
-                    {/* Pre-Flight Document Layout & Raster Inspection Card */}
-                    {metrics && (
-                        <DocumentMetricsCard metrics={metrics} qualityMode={qualityMode} />
-                    )}
-
-                    <div className="space-y-4 pt-1">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
-                            <Sliders className="w-4 h-4 text-notary-yellow" />
-                            <span>Lockdown Transformation Options</span>
+                    {/* Simple Options */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        {/* Watermark Checkbox */}
+                        <div
+                            onClick={() => setApplyWatermark(!applyWatermark)}
+                            className="p-3 rounded-md border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 cursor-pointer select-none flex items-center gap-2.5 transition-colors"
+                        >
+                            <div className="text-notary-yellow">
+                                {applyWatermark ? (
+                                    <CheckSquare className="w-4 h-4" />
+                                ) : (
+                                    <Square className="w-4 h-4 text-zinc-600" />
+                                )}
+                            </div>
+                            <div className="text-xs">
+                                <p className="text-zinc-200 font-medium">Add Confidential Watermark</p>
+                                <p className="text-[11px] text-zinc-500">Overlay diagonal notary notice</p>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div
-                                onClick={() => setApplyWatermark(!applyWatermark)}
-                                className={`p-3.5 rounded-lg border cursor-pointer select-none transition-all ${applyWatermark
-                                        ? 'bg-notary-badge/30 border-notary-yellow/40 text-white'
-                                        : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:border-zinc-700'
-                                    }`}
-                            >
-                                <div className="flex items-start gap-3">
-                                    <div className="mt-0.5 text-notary-yellow">
-                                        {applyWatermark ? (
-                                            <CheckSquare className="w-5 h-5" />
-                                        ) : (
-                                            <Square className="w-5 h-5 text-zinc-500" />
-                                        )}
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-semibold text-zinc-200">
-                                            Diagonal Watermark
-                                        </p>
-                                        <p className="text-[11px] text-notary-muted mt-0.5">
-                                            Burns <span className="font-mono text-zinc-300">"NotaryConnect - Confidential"</span> at -45&deg; into bitmap pixels.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="p-3.5 rounded-lg bg-zinc-900/80 border border-zinc-800 space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
-                                        <Layers className="w-4 h-4 text-notary-yellow" />
-                                        Image Encoding
-                                    </span>
-                                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-800 text-notary-yellow">
-                                        {qualityMode === 'compressed' ? 'JPEG 85%' : 'Lossless PNG'}
-                                    </span>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-1.5 bg-zinc-950 p-1 rounded-lg border border-zinc-800">
-                                    <button
-                                        type="button"
-                                        onClick={() => setQualityMode('compressed')}
-                                        className={`py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${qualityMode === 'compressed'
-                                                ? 'bg-notary-gold text-black font-semibold shadow'
-                                                : 'text-zinc-400 hover:text-white'
-                                            }`}
-                                    >
-                                        Compressed
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setQualityMode('full')}
-                                        className={`py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${qualityMode === 'full'
-                                                ? 'bg-notary-gold text-black font-semibold shadow'
-                                                : 'text-zinc-400 hover:text-white'
-                                            }`}
-                                    >
-                                        Full Resolution
-                                    </button>
-                                </div>
+                        {/* Quality Mode Toggle */}
+                        <div className="p-2.5 rounded-md border border-zinc-800 bg-zinc-900/50 flex items-center justify-between gap-2">
+                            <span className="text-xs text-zinc-400 font-medium pl-1">File Size:</span>
+                            <div className="grid grid-cols-2 gap-1 bg-zinc-950 p-0.5 rounded border border-zinc-800 text-xs">
+                                <button
+                                    type="button"
+                                    onClick={() => setQualityMode('compressed')}
+                                    className={`px-2.5 py-1 rounded transition-colors ${qualityMode === 'compressed'
+                                            ? 'bg-zinc-800 text-white font-medium'
+                                            : 'text-zinc-500 hover:text-zinc-300'
+                                        }`}
+                                >
+                                    Standard
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setQualityMode('full')}
+                                    className={`px-2.5 py-1 rounded transition-colors ${qualityMode === 'full'
+                                            ? 'bg-zinc-800 text-white font-medium'
+                                            : 'text-zinc-500 hover:text-zinc-300'
+                                        }`}
+                                >
+                                    Maximum
+                                </button>
                             </div>
                         </div>
                     </div>
 
+                    {/* Clean Primary Button */}
                     <div className="pt-2">
                         <button
                             onClick={handleProceed}
                             disabled={isValidating}
-                            className="w-full py-3 px-4 rounded-lg bg-notary-gold hover:bg-notary-hover text-black font-semibold text-sm transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-notary-gold/20"
+                            className="w-full py-2.5 px-4 rounded-md bg-notary-gold hover:bg-notary-hover text-black font-medium text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
                         >
-                            <span>Execute 300 DPI Lockdown Pipeline</span>
+                            <span>Generate read-only file</span>
                             <ArrowRight className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
             )}
 
-            <div className="p-3.5 rounded-lg bg-zinc-900/40 border border-zinc-800 flex items-start gap-2.5 text-xs text-notary-muted">
-                <AlertTriangle className="w-4 h-4 text-notary-yellow shrink-0 mt-0.5" />
-                <p>
-                    Documents undergo client-side vector eradication. All selectable text, form tags, and glyph tables are permanently converted into flattened 300 DPI bitmaps prior to cryptographic sealing.
-                </p>
+            {/* Simple Information Notice */}
+            <div className="flex items-center gap-2 text-xs text-zinc-500 px-1 font-mono">
+                <Info className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
+                <span>Converts document into an uneditable, non-selectable PDF for legal filing.</span>
             </div>
         </div>
     );
