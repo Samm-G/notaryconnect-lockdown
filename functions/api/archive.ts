@@ -130,6 +130,11 @@ export const onRequestPost = async (
             },
         });
 
+        // Cache audit index in KV for instant administrative lookup
+        await env.RATE_LIMIT_KV.put(`audit:index:${archiveResult.auditId}`, archiveResult.manifestKey, {
+            expirationTtl: 86400 * 30, // 30-day index cache
+        });
+
         // 7. Atomic Delivery: Stream Signed PDF directly to client with compliance headers
         const cleanBaseName = originalFile.name
             .replace(/[^a-zA-Z0-9._-]/g, '_')

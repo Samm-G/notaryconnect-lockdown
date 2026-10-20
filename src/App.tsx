@@ -4,6 +4,7 @@ import LoginView from './components/LoginView';
 import Dropzone from './components/Dropzone';
 import TelemetryProgress from './components/TelemetryProgress';
 import ComplianceReceipt from './components/ComplianceReceipt';
+import AuditInspectorModal from './components/AuditInspectorModal';
 import type { SessionData } from './types/auth';
 import type { DocumentValidationResult, ProcessingOptions, AuditReceipt } from './types/document';
 import type { PipelineTelemetryState } from './types/telemetry';
@@ -19,18 +20,24 @@ export default function App() {
     const [secondsRemaining, setSecondsRemaining] = useState(0);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+    // Whole-screen file drop support
     const [externalFile, setExternalFile] = useState<File | null>(null);
 
+    // Transformation & Archival state machine
     const [isProcessing, setIsProcessing] = useState(false);
     const [telemetry, setTelemetry] = useState<PipelineTelemetryState | null>(null);
     const [receipt, setReceipt] = useState<AuditReceipt | null>(null);
     const [pipelineError, setPipelineError] = useState<string | null>(null);
+
+    // Administrative Audit Inspector Modal state
+    const [isInspectorOpen, setIsInspectorOpen] = useState(false);
 
     const abortControllerRef = useRef<AbortController | null>(null);
     const activeBlobUrlRef = useRef<string | null>(null);
     const hasWarnedExpiryRef = useRef<boolean>(false);
     const { showToast } = useToast();
 
+    // Whole-screen drop trap hook (accepts drops anywhere on the browser window)
     const { isWindowDragging } = useGlobalDropTrap({
         isEnabled: isAuthenticated && !isProcessing && !receipt,
         onFileDrop: (file: File) => {
@@ -70,12 +77,13 @@ export default function App() {
         };
     }, []);
 
-    // Session countdown ticker with 5-minute warning & auto-lockout
+    // Session countdown ticker with 5-minute warning & graceful zero-second auto-lockout
     useEffect(() => {
         if (!isAuthenticated || secondsRemaining <= 0) return;
 
         const interval = setInterval(() => {
             setSecondsRemaining((prev) => {
+                // Trigger 5-Minute Warning Toast (exactly once)
                 if (prev <= 300 && prev > 1 && !hasWarnedExpiryRef.current) {
                     hasWarnedExpiryRef.current = true;
                     showToast({
@@ -85,10 +93,11 @@ export default function App() {
                     });
                 }
 
+                // Graceful 0-Second Lockout Handler
                 if (prev <= 1) {
                     clearInterval(interval);
 
-                    // Full memory sanitization on session expiration
+                    // Abort active processing & flush RAM
                     if (abortControllerRef.current) {
                         abortControllerRef.current.abort();
                     }
@@ -122,7 +131,6 @@ export default function App() {
     const handleLogout = async () => {
         setIsLoggingOut(true);
         try {
-            // Memory cleanup
             if (activeBlobUrlRef.current) {
                 revokeBlobUrl(activeBlobUrlRef.current);
                 activeBlobUrlRef.current = null;
@@ -138,6 +146,7 @@ export default function App() {
         }
     };
 
+    // Atomic Pipeline Execution: Render -> PAdES Sign -> R2 Archival -> Direct Stream Download
     const handleDocumentAccepted = async (
         validation: DocumentValidationResult,
         options: ProcessingOptions
@@ -161,6 +170,7 @@ export default function App() {
         });
 
         try {
+            // 1. Client-Side 300 DPI Rasterization & Watermark Burn-in
             const rasterResult = await executeDocumentLockdown(
                 validation.file,
                 options,
@@ -177,6 +187,7 @@ export default function App() {
                 abortController.signal
             );
 
+            // 2. Server-Side PAdES Sealing
             setTelemetry({
                 stage: 'signing',
                 currentPage: rasterResult.pageCount,
@@ -186,6 +197,7 @@ export default function App() {
                 error: null,
             });
 
+            // 3. Construct Multipart Payload for Edge Archival
             const formData = new FormData();
             formData.append('originalFile', validation.file);
             formData.append(
@@ -199,6 +211,7 @@ export default function App() {
             formData.append('watermarkApplied', String(options.applyWatermark));
             formData.append('qualityMode', options.qualityMode);
 
+            // 4. Server-Side R2 Archival
             setTelemetry({
                 stage: 'archiving',
                 currentPage: rasterResult.pageCount,
@@ -208,6 +221,7 @@ export default function App() {
                 error: null,
             });
 
+            // 5. Atomic Request to /api/archive
             const response = await fetch('/api/archive', {
                 method: 'POST',
                 body: formData,
@@ -225,6 +239,7 @@ export default function App() {
                 throw new Error(errMessage);
             }
 
+            // 6. Capture Compliance Headers
             const auditId = response.headers.get('X-Audit-ID') || crypto.randomUUID();
             const sha256Orig = response.headers.get('X-Audit-SHA256-Original') || 'N/A';
             const sha256Final = response.headers.get('X-Audit-SHA256-Final') || 'N/A';
@@ -253,7 +268,7 @@ export default function App() {
 
             setReceipt(newReceipt);
 
-            // Auto-Trigger Download
+            // 7. Auto-Trigger Immediate Browser Download (Atomic Gate Fulfilled)
             const blobUrl = URL.createObjectURL(signedPdfBlob);
             activeBlobUrlRef.current = blobUrl;
 
@@ -264,7 +279,7 @@ export default function App() {
             downloadLink.click();
             document.body.removeChild(downloadLink);
 
-            // Immediate RAM flush
+            // Memory sanitation
             setTimeout(() => {
                 revokeBlobUrl(blobUrl);
                 activeBlobUrlRef.current = null;
@@ -351,7 +366,7 @@ export default function App() {
                 />
             )}
 
-            {/* Main Workspace */}
+            {/* Main Workspace Body */}
             <main className="w-full flex-1 flex flex-col items-center justify-center my-6">
                 {!isAuthenticated ? (
                     <LoginView onSuccess={verifySession} />
@@ -414,11 +429,23 @@ export default function App() {
             </main>
 
             {/* Footer */}
-            <footer className="max-w-4xl w-full mx-auto text-center border-t border-zinc-900 pt-4 pb-2">
-                <p className="text-xs text-zinc-600 font-mono">
-                    NotaryConnect Lockdown v0.1.0 &bull; Strictly Confidential Legal Operations
-                </p>
+            <footer className="max-w-4xl w-full mx-auto flex items-center justify-between border-t border-zinc-900 pt-4 pb-2 text-xs text-zinc-600 font-mono">
+                <p>NotaryConnect Lockdown v0.1.0 &bull; Strictly Confidential Legal Operations</p>
+                {isAuthenticated && (
+                    <button
+                        onClick={() => setIsInspectorOpen(true)}
+                        className="text-zinc-500 hover:text-zinc-400 hover:underline cursor-pointer transition-colors"
+                    >
+                        Verify Audit Trail
+                    </button>
+                )}
             </footer>
+
+            {/* Hidden Administrative Chain of Custody Modal */}
+            <AuditInspectorModal
+                isOpen={isInspectorOpen}
+                onClose={() => setIsInspectorOpen(false)}
+            />
         </div>
     );
 }
