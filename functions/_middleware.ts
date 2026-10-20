@@ -4,7 +4,6 @@ import { parseCookies, SESSION_COOKIE_NAME } from './utils/cookies';
 import { verifySessionToken } from './utils/jwt';
 import { generateClientFingerprint } from './utils/fingerprint';
 
-// Paths accessible without an active 24-hour session
 const PUBLIC_API_PATHS = [
     '/api/auth/verify',
     '/api/auth/session',
@@ -19,34 +18,39 @@ export const onRequest = async (
     const url = new URL(request.url);
     const pathname = url.pathname;
 
-    // 1. Resolve Client IP and User-Agent for fingerprint verification
     const clientIp =
         request.headers.get('cf-connecting-ip') ||
         request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
         '127.0.0.1';
     const userAgent = request.headers.get('user-agent') || 'Unknown-Device';
 
-    // 2. Validate Session Cookie
-    const cookies = parseCookies(request);
-    const token = cookies[SESSION_COOKIE_NAME];
-
     let isAuthenticated = false;
 
-    if (token && env.JWT_SECRET) {
-        const expectedFingerprint = await generateClientFingerprint(userAgent, clientIp);
-        const sessionPayload = await verifySessionToken(token, env.JWT_SECRET, expectedFingerprint);
-        if (sessionPayload) {
-            isAuthenticated = true;
+    // 1. Check for Administrative Bearer Secret (For CLI Pipeline Scripts)
+    const authHeader = request.headers.get('Authorization') || '';
+    if (env.JWT_SECRET && authHeader === `Bearer ${env.JWT_SECRET}`) {
+        isAuthenticated = true;
+    }
+
+    // 2. Check for Operator Session Cookie
+    if (!isAuthenticated) {
+        const cookies = parseCookies(request);
+        const token = cookies[SESSION_COOKIE_NAME];
+
+        if (token && env.JWT_SECRET) {
+            const expectedFingerprint = await generateClientFingerprint(userAgent, clientIp);
+            const sessionPayload = await verifySessionToken(token, env.JWT_SECRET, expectedFingerprint);
+            if (sessionPayload) {
+                isAuthenticated = true;
+            }
         }
     }
 
     // 3. Handle /login route
     if (pathname === '/login') {
-        // If user is already authenticated, redirect them directly to the app root '/'
         if (isAuthenticated) {
             return Response.redirect(new URL('/', url.origin).toString(), 302);
         }
-        // Serve the SPA shell so the React login view can render
         if (env.ASSETS) {
             return env.ASSETS.fetch(new URL('/', url.origin));
         }
@@ -61,13 +65,13 @@ export const onRequest = async (
         return next();
     }
 
-    // 5. Handle Protected API Endpoints (e.g. /api/archive, /api/sign, etc.)
+    // 5. Handle Protected API Endpoints (/api/*)
     if (pathname.startsWith('/api/')) {
         if (!isAuthenticated) {
             return new Response(
                 JSON.stringify({
                     error: 'Unauthorized',
-                    message: 'A valid 24-hour TOTP session is required to access this compliance endpoint.',
+                    message: 'A valid 24-hour TOTP session or administrative bearer key is required.',
                     code: 'SESSION_EXPIRED_OR_MISSING',
                 }),
                 {
@@ -82,12 +86,10 @@ export const onRequest = async (
         return next();
     }
 
-    // 6. Handle Protected Document Routes (Application Root '/' and subpaths)
+    // 6. Handle Protected Application Routes
     if (!isAuthenticated) {
-        // Zero-leak gate: Unauthenticated users are redirected to /login before any app UI is exposed
         return Response.redirect(new URL('/login', url.origin).toString(), 302);
     }
 
-    // 7. Authenticated user accessing protected application shell -> Proceed
     return next();
 };
