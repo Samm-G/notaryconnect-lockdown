@@ -10,6 +10,7 @@ import type { PipelineTelemetryState } from './types/telemetry';
 import { executeDocumentLockdown } from './utils/rasterEngine';
 import { useGlobalDropTrap } from './hooks/useGlobalDropTrap';
 import { useToast } from './context/ToastContext';
+import { revokeBlobUrl } from './utils/memorySanitizer';
 import { Loader2, ShieldAlert } from 'lucide-react';
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
     const [pipelineError, setPipelineError] = useState<string | null>(null);
 
     const abortControllerRef = useRef<AbortController | null>(null);
+    const activeBlobUrlRef = useRef<string | null>(null);
     const hasWarnedExpiryRef = useRef<boolean>(false);
     const { showToast } = useToast();
 
@@ -59,13 +61,21 @@ export default function App() {
         verifySession();
     }, [verifySession]);
 
+    // Clean memory on window unload
+    useEffect(() => {
+        return () => {
+            if (activeBlobUrlRef.current) {
+                revokeBlobUrl(activeBlobUrlRef.current);
+            }
+        };
+    }, []);
+
     // Session countdown ticker with 5-minute warning & auto-lockout
     useEffect(() => {
         if (!isAuthenticated || secondsRemaining <= 0) return;
 
         const interval = setInterval(() => {
             setSecondsRemaining((prev) => {
-                // Trigger 5-Minute Warning Toast (exactly once)
                 if (prev <= 300 && prev > 1 && !hasWarnedExpiryRef.current) {
                     hasWarnedExpiryRef.current = true;
                     showToast({
@@ -75,27 +85,29 @@ export default function App() {
                     });
                 }
 
-                // Graceful 0-Second Lockout Handler
                 if (prev <= 1) {
                     clearInterval(interval);
 
-                    // 1. Abort active processing & flush RAM
+                    // Full memory sanitization on session expiration
                     if (abortControllerRef.current) {
                         abortControllerRef.current.abort();
                     }
+                    if (activeBlobUrlRef.current) {
+                        revokeBlobUrl(activeBlobUrlRef.current);
+                        activeBlobUrlRef.current = null;
+                    }
+
                     setIsProcessing(false);
                     setTelemetry(null);
                     setReceipt(null);
                     setExternalFile(null);
 
-                    // 2. Alert user
                     showToast({
                         type: 'error',
                         title: 'Session Expired',
                         message: 'Your 24-hour session has concluded. Please re-authenticate to continue.',
                     });
 
-                    // 3. Lock out to LoginView
                     setIsAuthenticated(false);
                     return 0;
                 }
@@ -110,6 +122,11 @@ export default function App() {
     const handleLogout = async () => {
         setIsLoggingOut(true);
         try {
+            // Memory cleanup
+            if (activeBlobUrlRef.current) {
+                revokeBlobUrl(activeBlobUrlRef.current);
+                activeBlobUrlRef.current = null;
+            }
             await fetch('/api/auth/logout', { method: 'POST' });
         } finally {
             setIsAuthenticated(false);
@@ -236,15 +253,22 @@ export default function App() {
 
             setReceipt(newReceipt);
 
-            // Instant Download
+            // Auto-Trigger Download
             const blobUrl = URL.createObjectURL(signedPdfBlob);
+            activeBlobUrlRef.current = blobUrl;
+
             const downloadLink = document.createElement('a');
             downloadLink.href = blobUrl;
             downloadLink.download = downloadFileName;
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 200);
+
+            // Immediate RAM flush
+            setTimeout(() => {
+                revokeBlobUrl(blobUrl);
+                activeBlobUrlRef.current = null;
+            }, 500);
 
             setTelemetry({
                 stage: 'completed',
@@ -277,6 +301,10 @@ export default function App() {
     };
 
     const handleReset = () => {
+        if (activeBlobUrlRef.current) {
+            revokeBlobUrl(activeBlobUrlRef.current);
+            activeBlobUrlRef.current = null;
+        }
         setReceipt(null);
         setTelemetry(null);
         setPipelineError(null);
@@ -286,13 +314,19 @@ export default function App() {
     const handleManualDownload = () => {
         if (!receipt) return;
         const blobUrl = URL.createObjectURL(receipt.signedPdfBlob);
+        activeBlobUrlRef.current = blobUrl;
+
         const link = document.createElement('a');
         link.href = blobUrl;
         link.download = receipt.downloadFileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 200);
+
+        setTimeout(() => {
+            revokeBlobUrl(blobUrl);
+            activeBlobUrlRef.current = null;
+        }, 500);
     };
 
     if (isCheckingSession) {
@@ -317,12 +351,12 @@ export default function App() {
                 />
             )}
 
-            {/* Main Workspace Body */}
+            {/* Main Workspace */}
             <main className="w-full flex-1 flex flex-col items-center justify-center my-6">
                 {!isAuthenticated ? (
                     <LoginView onSuccess={verifySession} />
                 ) : (
-                    <div className="max-w-xl w-full bg-zinc-950 border border-zinc-800 rounded-lg p-6 shadow-xl">
+                    <div className="max-w-xl w-full bg-zinc-950 border border-zinc-800 rounded-lg p-5 sm:p-6 shadow-xl">
                         {/* Header Title */}
                         <div className="mb-5">
                             <h2 className="text-base font-semibold text-white tracking-tight">
