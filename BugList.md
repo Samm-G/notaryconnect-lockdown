@@ -1,4 +1,12 @@
 
+Changes:
+
+- Change the page layout minimalist, flat style and simple.
+- In the header:
+  - Move the "Lockdown v0.1.0" to the footer of the page.
+  - Remove the "law.kroldon.app".
+  - Remove the Edge Ready badge in the top right.
+  - 
 
 COMMANDS:
 
@@ -19,3 +27,13 @@ PHASES TASKS:
       Task 1.3: Cryptographic Seed & Seal Generator (TOTP QR & X.509 PAdES Certificate)
 
       Task 1.4: Cloudflare Edge Health & Binding Verification Endpoint
+
+[Phase 2] 24-Hour TOTP Authentication & Edge Session Gate:
+
+      Task 2.1: Cryptographic Authentication Engine (Web Crypto TOTP, Fingerprinting & JWT)
+      
+      Task 2.2: Edge Rate Limiter & Auth Endpoints (/api/auth/*)
+
+      Task 2.3: Edge Routing Update & Document Gatekeeper (functions/_middleware.ts)
+
+      Task 2.4: Grey & Yellow Frontend Authentication Screen & Session State
