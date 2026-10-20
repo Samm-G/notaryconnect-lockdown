@@ -9,10 +9,11 @@ import { MAX_PAGE_COUNT } from './documentValidator';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export type PipelineTelemetryCallback = (
-    stage: 'initializing' | 'rendering_page' | 'burning_watermark' | 'encoding_bitmap' | 'assembling_pdf' | 'completed',
+    stage: 'normalizing' | 'rasterizing' | 'burning_watermark' | 'assembling' | 'completed',
     currentPage: number,
     totalPages: number,
-    percentage: number
+    percentage: number,
+    detailMessage: string
 ) => void;
 
 export interface RasterResult {
@@ -93,14 +94,17 @@ function suppressLiveTextOcr(page: any, font: any): void {
 }
 
 /**
- * Processes a PDF file.
+ * PDF Pipeline with AbortSignal cancellation and memory flushing.
  */
 async function processPdfPipeline(
     file: File,
     options: ProcessingOptions,
-    onTelemetry?: PipelineTelemetryCallback
+    onTelemetry?: PipelineTelemetryCallback,
+    signal?: AbortSignal
 ): Promise<RasterResult> {
     const arrayBuffer = await file.arrayBuffer();
+    if (signal?.aborted) throw new Error('Lockdown cancelled by operator.');
+
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     const pdfDoc = await loadingTask.promise;
     const totalPages = pdfDoc.numPages;
@@ -111,16 +115,23 @@ async function processPdfPipeline(
         );
     }
 
-    // Create clean PDF document without any vector text or form layers
     const assembledPdf = await PDFDocument.create();
     const font = await assembledPdf.embedFont(StandardFonts.Helvetica);
     const DPI_300_SCALE = 300 / 72;
 
     for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-        const progressPercent = Math.round(((pageNum - 1) / totalPages) * 100);
+        if (signal?.aborted) throw new Error('Lockdown cancelled by operator.');
+
+        const basePercent = Math.round(((pageNum - 1) / totalPages) * 90);
 
         if (onTelemetry) {
-            onTelemetry('rendering_page', pageNum, totalPages, progressPercent);
+            onTelemetry(
+                'rasterizing',
+                pageNum,
+                totalPages,
+                basePercent,
+                `Rasterizing page ${pageNum} of ${totalPages} at 300 DPI...`
+            );
         }
 
         const page = await pdfDoc.getPage(pageNum);
@@ -136,23 +147,24 @@ async function processPdfPipeline(
             throw new Error(`Failed to acquire 2D canvas context for page ${pageNum}.`);
         }
 
-        // Render page to 300 DPI canvas bitmap
         await page.render({
             canvasContext: ctx,
             viewport: scaledViewport,
         }).promise;
 
-        // Conditionally burn watermark into bitmap pixels
         if (options.applyWatermark) {
             if (onTelemetry) {
-                onTelemetry('burning_watermark', pageNum, totalPages, progressPercent);
+                onTelemetry(
+                    'burning_watermark',
+                    pageNum,
+                    totalPages,
+                    basePercent + 2,
+                    `Burning "NotaryConnect - Confidential" watermark on page ${pageNum}...`
+                );
             }
             burnWatermarkOntoCanvas(canvas);
         }
 
-        if (onTelemetry) {
-            onTelemetry('encoding_bitmap', pageNum, totalPages, progressPercent);
-        }
         const { bytes: imageBytes, format } = await canvasToBitmapBytes(canvas, options.qualityMode);
 
         const embeddedImage =
@@ -161,8 +173,6 @@ async function processPdfPipeline(
                 : await assembledPdf.embedPng(imageBytes);
 
         const newPage = assembledPdf.addPage([unscaledViewport.width, unscaledViewport.height]);
-
-        // Draw the flattened 300 DPI bitmap
         newPage.drawImage(embeddedImage, {
             x: 0,
             y: 0,
@@ -170,10 +180,9 @@ async function processPdfPipeline(
             height: unscaledViewport.height,
         });
 
-        // Suppress Apple Preview Live Text (No draggable annotations, zero visual artifacts)
         suppressLiveTextOcr(newPage, font);
 
-        // Memory sanitation
+        // Explicit memory sanitation
         canvas.width = 0;
         canvas.height = 0;
 
@@ -181,13 +190,13 @@ async function processPdfPipeline(
     }
 
     if (onTelemetry) {
-        onTelemetry('assembling_pdf', totalPages, totalPages, 95);
+        onTelemetry('assembling', totalPages, totalPages, 95, 'Assembling image-only PDF container...');
     }
 
     const lockedPdfBytes = await assembledPdf.save();
 
     if (onTelemetry) {
-        onTelemetry('completed', totalPages, totalPages, 100);
+        onTelemetry('completed', totalPages, totalPages, 100, '300 DPI lockdown complete.');
     }
 
     return {
@@ -199,20 +208,28 @@ async function processPdfPipeline(
 }
 
 /**
- * Processes a modern .docx file.
+ * Word Pipeline with AbortSignal cancellation and memory flushing.
  */
 async function processDocxPipeline(
     file: File,
     options: ProcessingOptions,
-    onTelemetry?: PipelineTelemetryCallback
+    onTelemetry?: PipelineTelemetryCallback,
+    signal?: AbortSignal
 ): Promise<RasterResult> {
     if (onTelemetry) {
-        onTelemetry('initializing', 0, 0, 5);
+        onTelemetry('normalizing', 0, 0, 10, 'Parsing OpenXML formatting & legal tables...');
     }
 
     const pageCanvases = await normalizeDocxToCanvases(file, (_stage, cur, total) => {
+        if (signal?.aborted) throw new Error('Lockdown cancelled by operator.');
         if (onTelemetry) {
-            onTelemetry('rendering_page', cur, total, Math.round((cur / (total || 1)) * 50));
+            onTelemetry(
+                'normalizing',
+                cur,
+                total,
+                Math.round((cur / (total || 1)) * 40),
+                `Rendering Word layout: page ${cur} of ${total || '...'}`
+            );
         }
     });
 
@@ -228,19 +245,29 @@ async function processDocxPipeline(
     const DPI_300_SCALE = 300 / 72;
 
     for (let i = 0; i < totalPages; i++) {
+        if (signal?.aborted) {
+            pageCanvases.forEach((p) => {
+                p.canvas.width = 0;
+                p.canvas.height = 0;
+            });
+            throw new Error('Lockdown cancelled by operator.');
+        }
+
         const pageObj = pageCanvases[i];
         const pageNum = i + 1;
-        const progressPercent = 50 + Math.round((pageNum / totalPages) * 45);
+        const progressPercent = 40 + Math.round((pageNum / totalPages) * 50);
 
         if (options.applyWatermark) {
             if (onTelemetry) {
-                onTelemetry('burning_watermark', pageNum, totalPages, progressPercent);
+                onTelemetry(
+                    'burning_watermark',
+                    pageNum,
+                    totalPages,
+                    progressPercent,
+                    `Burning "NotaryConnect - Confidential" watermark on page ${pageNum}...`
+                );
             }
             burnWatermarkOntoCanvas(pageObj.canvas);
-        }
-
-        if (onTelemetry) {
-            onTelemetry('encoding_bitmap', pageNum, totalPages, progressPercent);
         }
 
         const { bytes: imageBytes, format } = await canvasToBitmapBytes(
@@ -264,9 +291,9 @@ async function processDocxPipeline(
             height: heightPt,
         });
 
-        // Suppress Apple Preview Live Text
         suppressLiveTextOcr(newPage, font);
 
+        // Memory sanitation
         pageObj.canvas.width = 0;
         pageObj.canvas.height = 0;
 
@@ -274,13 +301,13 @@ async function processDocxPipeline(
     }
 
     if (onTelemetry) {
-        onTelemetry('assembling_pdf', totalPages, totalPages, 98);
+        onTelemetry('assembling', totalPages, totalPages, 96, 'Assembling image-only PDF container...');
     }
 
     const lockedPdfBytes = await assembledPdf.save();
 
     if (onTelemetry) {
-        onTelemetry('completed', totalPages, totalPages, 100);
+        onTelemetry('completed', totalPages, totalPages, 100, '300 DPI lockdown complete.');
     }
 
     return {
@@ -294,16 +321,17 @@ async function processDocxPipeline(
 export async function executeDocumentLockdown(
     file: File,
     options: ProcessingOptions,
-    onTelemetry?: PipelineTelemetryCallback
+    onTelemetry?: PipelineTelemetryCallback,
+    signal?: AbortSignal
 ): Promise<RasterResult> {
     const fileName = file.name.toLowerCase();
 
     if (fileName.endsWith('.pdf')) {
-        return processPdfPipeline(file, options, onTelemetry);
+        return processPdfPipeline(file, options, onTelemetry, signal);
     }
 
     if (fileName.endsWith('.docx')) {
-        return processDocxPipeline(file, options, onTelemetry);
+        return processDocxPipeline(file, options, onTelemetry, signal);
     }
 
     throw new Error(`Unsupported document extension for lockdown: ${file.name}`);
