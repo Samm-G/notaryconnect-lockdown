@@ -17,6 +17,7 @@ import {
     MAX_PAGE_COUNT,
     MAX_FILE_SIZE_MB,
 } from '../utils/documentValidator';
+import { useToast } from '../context/ToastContext';
 
 interface DropzoneProps {
     onDocumentAccepted: (validation: DocumentValidationResult, options: ProcessingOptions) => void;
@@ -31,6 +32,7 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
     const [qualityMode, setQualityMode] = useState<'compressed' | 'full'>('compressed');
 
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const { showToast } = useToast();
 
     const processFile = async (file: File) => {
         setIsValidating(true);
@@ -60,9 +62,20 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
         e.stopPropagation();
         setIsDragging(false);
 
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            await processFile(e.dataTransfer.files[0]);
+        const files = e.dataTransfer.files;
+        if (!files || files.length === 0) return;
+
+        // Guardrail: Intercept Multi-File Drops
+        if (files.length > 1) {
+            showToast({
+                type: 'warning',
+                title: 'Multiple Files Rejected',
+                message: 'Single document lockdown only. Please drop one affidavit or deed at a time.',
+            });
+            return;
         }
+
+        await processFile(files[0]);
     };
 
     const handleFileInputChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -91,12 +104,13 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
         <div className="space-y-6">
             {!validation?.valid && (
                 <div
+                    data-dropzone="true"
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
                     className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200 ${isDragging
-                            ? 'border-notary-yellow bg-notary-yellow/5 scale-[1.01]'
+                            ? 'border-notary-yellow bg-notary-yellow/10 scale-[1.01] shadow-lg shadow-notary-yellow/10'
                             : 'border-zinc-700 hover:border-zinc-500 bg-zinc-900/60'
                         }`}
                 >
@@ -113,7 +127,7 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                     </div>
 
                     <h3 className="text-base font-semibold text-white">
-                        Drag & Drop Legal Document Here
+                        Drag &amp; Drop Legal Document Here
                     </h3>
                     <p className="text-xs text-notary-muted mt-1.5 max-w-sm mx-auto">
                         Upload affidavits, deeds, or notary agreements in{' '}
@@ -126,6 +140,8 @@ export default function Dropzone({ onDocumentAccepted }: DropzoneProps) {
                         <span>Limit: &le; {MAX_PAGE_COUNT} Pages</span>
                         <span>&bull;</span>
                         <span>&le; {MAX_FILE_SIZE_MB} MB</span>
+                        <span>&bull;</span>
+                        <span>Single File Only</span>
                     </div>
                 </div>
             )}

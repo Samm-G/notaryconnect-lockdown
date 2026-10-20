@@ -1,19 +1,25 @@
 
 Changes:
 
+FRONTEND CHANGES:
+- Make changes in the frontend not to overwhelm the paralegalswith technical information.
+For example:
+  - After conversion: Hide the "Cryptographic Checksums (SHA-256)" and "R2 Compliance Trail Committed:" sections inside info element (however required). Keep the "AUDIT ID: ..." visible.
 - Change the page layout minimalist, flat style and simple.
+- Change the button "Execute 300DPI.." text to something simple like "Generate read-only file".
+- Accept drop zone as the entire screen, instead of a toast message. Even if the user drops files outside the area, the file must get uploaded.
 - In the header:
   - Move the "Lockdown v0.1.0" to the footer of the page.
   - Remove the "law.kroldon.app".
   - Remove the Edge Ready badge in the top right.
+  
+
+LATER TESTS PROMPT:
 - Make sure the popular Phone OS OCRs (Oppo, Vivo, Samsumg, Redmi, Apple) also do not work on the text.
 - Make sure text isnt selectable in most of the text editors. (generally used with Windows, Mac and Linux OS).
 
-- Make changes in the frontend not to overwhelm the paralegalswith technical information.
-For example:
-  - After conversion: Hide the "Cryptographic Checksums (SHA-256)" and "R2 Compliance Trail Committed:" sections inside info element (however required).
-  - 
-
+BACKEND CHANGES:
+- Make the suffix "_LOCKED_NOTARY" configurable from env. Change it to "_NC"
   
 COMMANDS:
 
@@ -64,3 +70,13 @@ Phase 4: PAdES Digital Signing & Atomic Cloudflare R2 Dual-Archival
       Task 4.3: Atomic Ingestion & Signing Endpoint (functions/api/archive.ts)
 
       Task 4.4: Frontend Integration & Telemetry Card
+
+Phase 5: Frontend Drag-and-Drop UI, Real-Time Telemetry & Downloader Polish
+
+      Task 5.1: Zero-Dependency Toast Notification Stack & Global Drop Interceptor
+
+      Task 5.2: Document Metric Inspector Card & Layout Detection
+
+      Task 5.3: Session Countdown 5-Minute Warning & Graceful Lockout Handler
+
+      Task 5.4: Downloader Polish, Final Responsiveness & Memory Sanitization

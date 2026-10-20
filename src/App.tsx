@@ -8,6 +8,7 @@ import type { SessionData } from './types/auth';
 import type { DocumentValidationResult, ProcessingOptions, AuditReceipt } from './types/document';
 import type { PipelineTelemetryState } from './types/telemetry';
 import { executeDocumentLockdown } from './utils/rasterEngine';
+import { useGlobalDropTrap } from './hooks/useGlobalDropTrap';
 import { Loader2, ShieldAlert } from 'lucide-react';
 
 export default function App() {
@@ -15,6 +16,9 @@ export default function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [secondsRemaining, setSecondsRemaining] = useState(0);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+    // Global window drop interceptor hook
+    const { isWindowDragging } = useGlobalDropTrap();
 
     // Transformation & Archival state machine
     const [isProcessing, setIsProcessing] = useState(false);
@@ -77,7 +81,7 @@ export default function App() {
         }
     };
 
-    // Atomic Pipeline Execution: Render &rarr; PAdES Sign &rarr; R2 Archival &rarr; Direct Download
+    // Atomic Pipeline Execution: Render -> PAdES Sign -> R2 Archival -> Direct Download
     const handleDocumentAccepted = async (
         validation: DocumentValidationResult,
         options: ProcessingOptions
@@ -274,7 +278,10 @@ export default function App() {
     }
 
     return (
-        <div className="min-h-screen bg-notary-dark text-notary-light flex flex-col justify-between p-6">
+        <div
+            className={`min-h-screen bg-notary-dark text-notary-light flex flex-col justify-between p-6 transition-all duration-150 ${isWindowDragging ? 'ring-4 ring-notary-yellow/40 ring-inset bg-zinc-950' : ''
+                }`}
+        >
             {isAuthenticated && (
                 <Header
                     secondsRemaining={secondsRemaining}
@@ -320,7 +327,7 @@ export default function App() {
                             <Dropzone onDocumentAccepted={handleDocumentAccepted} />
                         )}
 
-                        {/* State 2: Telemetry Active (Processing: Rasterize &rarr; Sign &rarr; Archive) */}
+                        {/* State 2: Telemetry Active (Processing: Rasterize -> Sign -> Archive) */}
                         {isProcessing && telemetry && (
                             <TelemetryProgress
                                 telemetry={telemetry}
