@@ -6,7 +6,7 @@ Changes:
   - Move the "Lockdown v0.1.0" to the footer of the page.
   - Remove the "law.kroldon.app".
   - Remove the Edge Ready badge in the top right.
-  - 
+- Increase the documents limit to 15 pages (50MB).
 
 COMMANDS:
 
@@ -37,3 +37,14 @@ PHASES TASKS:
       Task 2.3: Edge Routing Update & Document Gatekeeper (functions/_middleware.ts)
 
       Task 2.4: Grey & Yellow Frontend Authentication Screen & Session State
+
+Phase 3: Word Conversion, Watermarking & 300 DPI Rasterization Engine:
+
+      Task 3.1: Document Ingestion, Defensive Sniffing & Processing Configuration
+
+      Task 3.2: Modern .docx to Vector Canvas Normalization Engine
+
+      Task 3.3: 300 DPI Anti-Tampering Rasterization, Watermark Burn-in & PDF Repacking Engine
+
+      Task 3.4: Real-Time Pipeline Telemetry & RAM Sanitization
+
