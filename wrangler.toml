@@ -17,4 +17,4 @@ bucket_name = "kroldon-notary-audit"
 # Cloudflare KV Binding for IP Rate Limiting & Auth Lockouts
 [[kv_namespaces]]
 binding = "RATE_LIMIT_KV"
-id = "RATE_LIMIT_KV_ID_PLACEHOLDER"
+id = "5b732bb2642c4920be2fdf405542008b"
