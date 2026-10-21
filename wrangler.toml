@@ -1,8 +1,9 @@
 name = "notaryconnect-lockdown"
-main = "dist/_worker.js"
+main = "./dist/worker/index.js"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Static Assets Directory
 [assets]
 directory = "./dist"
 
