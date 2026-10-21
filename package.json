@@ -5,18 +5,18 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "tsc && vite build",
+        "build": "tsc && vite build && npx wrangler pages functions build --outfile=_worker.js",
         "preview": "vite preview",
         "pages:dev": "wrangler pages dev dist --kv=RATE_LIMIT_KV --r2=R2_BUCKET=kroldon-notary-audit"
     },
     "dependencies": {
         "clsx": "^2.1.1",
-        "docx-preview": "^0.4.1",
-        "html-to-image": "^1.11.13",
-        "jszip": "^3.10.2",
+        "docx-preview": "^0.3.3",
+        "html-to-image": "^1.11.11",
+        "jszip": "^3.10.1",
         "lucide-react": "^0.475.0",
         "pdf-lib": "^1.17.1",
-        "pdfjs-dist": "^4.10.38",
+        "pdfjs-dist": "4.10.38",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "tailwind-merge": "^3.0.1"

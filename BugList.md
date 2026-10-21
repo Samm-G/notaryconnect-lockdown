@@ -1,7 +1,7 @@
 
 Changes:
 
-FRONTEND CHANGES:
+FRONTEND CHANGES (DONE - Check once):
 - Make changes in the frontend not to overwhelm the paralegals with technical information.
 For example:
   - After conversion: Hide the "Cryptographic Checksums (SHA-256)" and "R2 Compliance Trail Committed:" sections inside info element (however required). Keep the "AUDIT ID: ..." visible.
@@ -15,6 +15,7 @@ For example:
 
 BACKEND CHANGES:
 - Make the suffix "_LOCKED_NOTARY" configurable from env. Change it to "_NC"
+- Add to the script, option to clear the r2 storage as well.
 
 LATER TESTS PROMPT:
 - Make sure the popular Phone OS OCRs (Oppo, Vivo, Samsumg, Redmi, Apple) also do not work on the text.

@@ -36,4 +36,5 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
-*.dev.vars
+*.dev.vars_worker.js
+_worker.js
