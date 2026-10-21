@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "tsc && vite build && npx wrangler pages functions build --outdir=dist",
+        "build": "tsc && vite build && npx wrangler pages functions build --outfile=dist/_worker.js",
         "preview": "vite preview",
         "pages:dev": "wrangler pages dev dist --kv=RATE_LIMIT_KV --r2=R2_BUCKET=kroldon-notary-audit"
     },
