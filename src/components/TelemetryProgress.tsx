@@ -1,4 +1,4 @@
-import { Loader2, CheckCircle2, Shield, Stamp, FileCheck, KeyRound, HardDrive } from 'lucide-react';
+import { Loader2, Shield } from 'lucide-react';
 import type { PipelineTelemetryState } from '../types/telemetry';
 
 interface TelemetryProgressProps {
@@ -9,131 +9,44 @@ interface TelemetryProgressProps {
 
 export default function TelemetryProgress({
     telemetry,
-    fileName,
     onCancel,
 }: TelemetryProgressProps) {
-    const steps = [
-        {
-            id: 'norm',
-            label: 'Layout Normalization',
-            active: telemetry.stage === 'normalizing',
-            done: ['rasterizing', 'burning_watermark', 'assembling', 'signing', 'archiving', 'completed'].includes(telemetry.stage),
-        },
-        {
-            id: 'raster',
-            label: `300 DPI Rasterization ${telemetry.totalPages > 0 ? `(${telemetry.currentPage}/${telemetry.totalPages})` : ''}`,
-            active: telemetry.stage === 'rasterizing',
-            done: ['burning_watermark', 'assembling', 'signing', 'archiving', 'completed'].includes(telemetry.stage),
-        },
-        {
-            id: 'wm',
-            label: 'Watermark Burn-In',
-            active: telemetry.stage === 'burning_watermark',
-            done: ['assembling', 'signing', 'archiving', 'completed'].includes(telemetry.stage),
-        },
-        {
-            id: 'pack',
-            label: 'Vector Eradication',
-            active: telemetry.stage === 'assembling',
-            done: ['signing', 'archiving', 'completed'].includes(telemetry.stage),
-        },
-        {
-            id: 'sign',
-            label: 'PAdES Digital Seal (X.509)',
-            active: telemetry.stage === 'signing',
-            done: ['archiving', 'completed'].includes(telemetry.stage),
-        },
-        {
-            id: 'r2',
-            label: 'WORM R2 Compliance Archival',
-            active: telemetry.stage === 'archiving',
-            done: telemetry.stage === 'completed',
-        },
-    ];
-
     return (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-6 animate-fadeIn">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+        <div className="glass-pill rounded-xl p-6 space-y-5 animate-fadeIn">
+            <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-lg bg-notary-badge border border-notary-yellow/30 text-notary-yellow">
+                    <div className="p-2 rounded-lg bg-notary-yellow/10 border border-notary-yellow/30 text-notary-yellow">
                         <Shield className="w-5 h-5 animate-pulse" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-white tracking-tight truncate max-w-sm">
-                            {fileName}
-                        </h3>
-                        <p className="text-xs text-notary-muted font-mono mt-0.5">
-                            Lockdown Pipeline &amp; Compliance Seal In Progress
-                        </p>
+                        <h3 className="text-sm font-medium text-white">Converting Document...</h3>
+                        <p className="text-xs text-zinc-400 mt-0.5">{telemetry.detailMessage}</p>
                     </div>
                 </div>
 
-                {/* Cancel only allowed during client-side rendering before server-side archival */}
                 {['normalizing', 'rasterizing', 'burning_watermark', 'assembling'].includes(telemetry.stage) && (
                     <button
                         onClick={onCancel}
-                        className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-medium cursor-pointer transition-colors"
+                        className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 border border-white/10 text-xs cursor-pointer transition-colors"
                     >
                         Cancel
                     </button>
                 )}
             </div>
 
-            {/* Progress Bar */}
             <div className="space-y-2">
                 <div className="flex justify-between items-center text-xs font-mono">
-                    <span className="text-zinc-300 truncate max-w-xs">{telemetry.detailMessage}</span>
-                    <span className="text-notary-yellow font-bold">{telemetry.percentage}%</span>
+                    <span className="text-zinc-400 flex items-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 text-notary-yellow animate-spin" />
+                        <span>Processing</span>
+                    </span>
+                    <span className="text-notary-yellow font-semibold">{telemetry.percentage}%</span>
                 </div>
-                <div className="w-full h-2.5 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800 p-0.5">
+                <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/10">
                     <div
-                        className="h-full bg-gradient-to-r from-notary-yellow to-notary-gold rounded-full transition-all duration-300"
+                        className="h-full bg-gradient-to-r from-notary-yellow to-notary-gold rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(250,204,21,0.5)]"
                         style={{ width: `${Math.min(100, Math.max(5, telemetry.percentage))}%` }}
                     />
-                </div>
-            </div>
-
-            {/* Granular Pipeline Steps */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
-                {steps.map((step) => (
-                    <div
-                        key={step.id}
-                        className={`p-2.5 rounded-lg border text-xs flex items-center gap-2.5 transition-all ${step.active
-                                ? 'bg-notary-badge/30 border-notary-yellow/50 text-white shadow-sm'
-                                : step.done
-                                    ? 'bg-zinc-900/60 border-zinc-800 text-zinc-300'
-                                    : 'bg-zinc-950/40 border-zinc-800/60 text-zinc-500'
-                            }`}
-                    >
-                        {step.done ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        ) : step.active ? (
-                            <Loader2 className="w-4 h-4 text-notary-yellow animate-spin shrink-0" />
-                        ) : (
-                            <div className="w-4 h-4 rounded-full border border-zinc-600 shrink-0" />
-                        )}
-                        <span className="font-medium truncate">{step.label}</span>
-                    </div>
-                ))}
-            </div>
-
-            {/* Active Security Guarantees */}
-            <div className="p-3 rounded-lg bg-zinc-950/70 border border-zinc-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-notary-muted font-mono">
-                <div className="flex items-center gap-1.5">
-                    <Stamp className="w-3.5 h-3.5 text-notary-yellow" />
-                    <span>300 DPI</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Non-Selectable</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <KeyRound className="w-3.5 h-3.5 text-notary-yellow" />
-                    <span>PAdES Seal</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <HardDrive className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>R2 WORM</span>
                 </div>
             </div>
         </div>

@@ -73,8 +73,8 @@ export const onRequestGet = async (context: EventContext<Env, any, Record<string
         timestamp: new Date().toISOString(),
         latency_ms: latencyMs,
         environment: {
-            name: context.env.APP_NAME || 'NotaryConnect Lockdown Utility',
-            domain: context.env.APP_DOMAIN || 'law.kroldon.app',
+            name: context.env.APP_NAME || 'E-Stamp Sampark',
+            domain: context.env.APP_DOMAIN || 'convert.estampsampark.com',
             jurisdiction: context.env.JURISDICTION || 'IN',
             deployment: context.env.ENVIRONMENT || 'production',
         },

@@ -3,19 +3,19 @@ main = "./dist/worker/index.js"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Static Assets Directory
 [assets]
 directory = "./dist"
 
 [vars]
 ENVIRONMENT = "production"
-APP_NAME = "NotaryConnect Lockdown Utility"
-APP_DOMAIN = "law.kroldon.app"
+APP_NAME = "E-Stamp Sampark"
+APP_DOMAIN = "convert.estampsampark.com"
 JURISDICTION = "IN"
 VITE_MAX_PAGE_COUNT = "15"
 VITE_MAX_FILE_SIZE_MB = "50"
+FILENAME_SUFFIX = "_NC"
+VITE_FILENAME_SUFFIX = "_NC"
 
-# Production R2 Bucket Binding
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "kroldon-notary-audit"

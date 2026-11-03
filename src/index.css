@@ -8,24 +8,54 @@
 
 body {
   margin: 0;
-  background-color: #09090b;
+  background-color: #070709;
   color: #f4f4f5;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
-/* Custom scrollbars matching dark-grey/amber theme */
+@layer components {
+  /* Frosted Glass Card with Subtle Top Highlight & Ambient Glow */
+  .glass-panel {
+    background: linear-gradient(145deg, rgba(24, 24, 27, 0.65) 0%, rgba(9, 9, 11, 0.75) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 
+      0 20px 50px -12px rgba(0, 0, 0, 0.7),
+      0 0 35px -10px rgba(250, 204, 21, 0.07),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  }
+
+  /* Subtle Frosted Sub-Card / Pill */
+  .glass-pill {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  /* Glowing Primary Action Button */
+  .glow-button {
+    box-shadow: 0 0 25px -4px rgba(234, 179, 8, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
+  }
+  .glow-button:hover:not(:disabled) {
+    box-shadow: 0 0 32px -2px rgba(250, 204, 21, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.4);
+  }
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #18181b;
+  background: #09090b;
 }
 ::-webkit-scrollbar-thumb {
   background: #27272a;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #eab308;

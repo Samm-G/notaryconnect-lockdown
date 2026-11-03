@@ -7,7 +7,6 @@ import {
     Square,
     ArrowRight,
     RefreshCw,
-    Info,
 } from 'lucide-react';
 import type { DocumentValidationResult, ProcessingOptions } from '../types/document';
 import {
@@ -55,7 +54,6 @@ export default function Dropzone({
         }
     };
 
-    // Ingest files dropped anywhere on screen
     useEffect(() => {
         if (externalDroppedFile) {
             processFile(externalDroppedFile);
@@ -111,7 +109,6 @@ export default function Dropzone({
 
     return (
         <div className="space-y-4">
-            {/* Minimalist Flat Drop Area */}
             {!validation?.valid && (
                 <div
                     data-dropzone="true"
@@ -119,9 +116,9 @@ export default function Dropzone({
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`border border-dashed rounded-lg p-8 sm:p-12 text-center cursor-pointer transition-colors ${isDragging
-                            ? 'border-notary-yellow bg-zinc-900'
-                            : 'border-zinc-800 hover:border-zinc-700 bg-zinc-950'
+                    className={`border border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200 ${isDragging
+                            ? 'border-notary-yellow bg-notary-yellow/10 shadow-[0_0_30px_rgba(250,204,21,0.15)]'
+                            : 'border-white/15 hover:border-notary-yellow/40 bg-white/[0.02] hover:bg-white/[0.04]'
                         }`}
                 >
                     <input
@@ -132,55 +129,49 @@ export default function Dropzone({
                         className="hidden"
                     />
 
-                    <div className="w-12 h-12 mx-auto mb-3 bg-zinc-900 border border-zinc-800 rounded-lg flex items-center justify-center text-notary-yellow">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-notary-yellow/10 border border-notary-yellow/30 flex items-center justify-center text-notary-yellow shadow-[0_0_20px_rgba(250,204,21,0.15)]">
                         <UploadCloud className="w-6 h-6" />
                     </div>
 
                     <p className="text-sm font-medium text-white">
-                        Drag &amp; drop document anywhere
+                        Drop document here or <span className="text-notary-yellow underline">browse</span>
                     </p>
-                    <p className="text-xs text-zinc-500 mt-1">
-                        or <span className="text-notary-yellow hover:underline">browse file</span> from your computer
-                    </p>
-
-                    <p className="text-[11px] text-zinc-500 mt-4 font-mono">
-                        Supported: .pdf, .docx &bull; Max {MAX_PAGE_COUNT} pages &bull; Up to {MAX_FILE_SIZE_MB} MB
+                    <p className="text-xs text-zinc-400 mt-1.5 font-mono">
+                        PDF or DOCX &bull; Max {MAX_PAGE_COUNT} pages ({MAX_FILE_SIZE_MB} MB)
                     </p>
                 </div>
             )}
 
-            {/* Validation Error */}
             {validation && !validation.valid && (
-                <div className="p-3.5 rounded-lg bg-zinc-950 border border-red-500/40 text-xs flex items-start justify-between gap-3 animate-fadeIn">
-                    <div className="flex items-start gap-2.5">
-                        <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                        <p className="text-zinc-300">{validation.error}</p>
+                <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/30 text-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                        <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+                        <p className="text-red-200">{validation.error}</p>
                     </div>
                     <button
                         onClick={handleReset}
-                        className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs shrink-0 cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-200 text-xs shrink-0 cursor-pointer"
                     >
                         Retry
                     </button>
                 </div>
             )}
 
-            {/* Clean Selected File View */}
             {validation && validation.valid && validation.file && (
-                <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-5 space-y-4 animate-fadeIn">
-                    {/* File Header */}
-                    <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-md bg-zinc-900 border border-zinc-800 text-notary-yellow">
+                <div className="glass-pill rounded-xl p-5 space-y-4 animate-fadeIn">
+                    {/* File Summary */}
+                    <div className="flex items-center justify-between border-b border-white/10 pb-3.5">
+                        <div className="flex items-center gap-3 truncate">
+                            <div className="p-2 rounded-lg bg-notary-yellow/10 border border-notary-yellow/30 text-notary-yellow shrink-0">
                                 <FileText className="w-5 h-5" />
                             </div>
                             <div className="truncate">
-                                <h4 className="text-sm font-medium text-white truncate max-w-sm sm:max-w-md">
+                                <h4 className="text-sm font-medium text-white truncate max-w-xs sm:max-w-md">
                                     {validation.file.name}
                                 </h4>
-                                <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                                <p className="text-xs text-zinc-400 font-mono mt-0.5">
                                     {validation.fileSizeMb} MB
-                                    {metrics ? ` • ${metrics.paperSizeName} ${metrics.orientation}` : ''}
+                                    {metrics ? ` • ${metrics.paperSizeName}` : ''}
                                     {validation.pageCount !== null ? ` • ${validation.pageCount} pages` : ''}
                                 </p>
                             </div>
@@ -188,43 +179,38 @@ export default function Dropzone({
 
                         <button
                             onClick={handleReset}
-                            className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
-                            title="Select different file"
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                            title="Change file"
                         >
                             <RefreshCw className="w-4 h-4" />
                         </button>
                     </div>
 
-                    {/* Simple Options */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                        {/* Watermark Checkbox */}
+                    {/* Simple Controls */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div
                             onClick={() => setApplyWatermark(!applyWatermark)}
-                            className="p-3 rounded-md border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 cursor-pointer select-none flex items-center gap-2.5 transition-colors"
+                            className="p-3 rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer select-none flex items-center gap-2.5 transition-all"
                         >
                             <div className="text-notary-yellow">
                                 {applyWatermark ? (
                                     <CheckSquare className="w-4 h-4" />
                                 ) : (
-                                    <Square className="w-4 h-4 text-zinc-600" />
+                                    <Square className="w-4 h-4 text-zinc-500" />
                                 )}
                             </div>
-                            <div className="text-xs">
-                                <p className="text-zinc-200 font-medium">Add Confidential Watermark</p>
-                                <p className="text-[11px] text-zinc-500">Overlay diagonal notary notice</p>
-                            </div>
+                            <span className="text-xs text-zinc-200 font-medium">Add Watermark</span>
                         </div>
 
-                        {/* Quality Mode Toggle */}
-                        <div className="p-2.5 rounded-md border border-zinc-800 bg-zinc-900/50 flex items-center justify-between gap-2">
-                            <span className="text-xs text-zinc-400 font-medium pl-1">File Size:</span>
-                            <div className="grid grid-cols-2 gap-1 bg-zinc-950 p-0.5 rounded border border-zinc-800 text-xs">
+                        <div className="p-2 rounded-xl border border-white/10 bg-white/[0.02] flex items-center justify-between gap-2">
+                            <span className="text-xs text-zinc-400 font-medium pl-2">Quality:</span>
+                            <div className="grid grid-cols-2 gap-1 bg-black/40 p-0.5 rounded-lg border border-white/5 text-xs">
                                 <button
                                     type="button"
                                     onClick={() => setQualityMode('compressed')}
-                                    className={`px-2.5 py-1 rounded transition-colors ${qualityMode === 'compressed'
-                                            ? 'bg-zinc-800 text-white font-medium'
-                                            : 'text-zinc-500 hover:text-zinc-300'
+                                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${qualityMode === 'compressed'
+                                            ? 'bg-notary-yellow/20 text-notary-yellow font-medium'
+                                            : 'text-zinc-400 hover:text-zinc-200'
                                         }`}
                                 >
                                     Standard
@@ -232,36 +218,27 @@ export default function Dropzone({
                                 <button
                                     type="button"
                                     onClick={() => setQualityMode('full')}
-                                    className={`px-2.5 py-1 rounded transition-colors ${qualityMode === 'full'
-                                            ? 'bg-zinc-800 text-white font-medium'
-                                            : 'text-zinc-500 hover:text-zinc-300'
+                                    className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${qualityMode === 'full'
+                                            ? 'bg-notary-yellow/20 text-notary-yellow font-medium'
+                                            : 'text-zinc-400 hover:text-zinc-200'
                                         }`}
                                 >
-                                    Maximum
+                                    High
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* Clean Primary Button */}
-                    <div className="pt-2">
-                        <button
-                            onClick={handleProceed}
-                            disabled={isValidating}
-                            className="w-full py-2.5 px-4 rounded-md bg-notary-gold hover:bg-notary-hover text-black font-medium text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                            <span>Generate read-only file</span>
-                            <ArrowRight className="w-4 h-4" />
-                        </button>
-                    </div>
+                    <button
+                        onClick={handleProceed}
+                        disabled={isValidating}
+                        className="w-full py-2.5 px-4 rounded-xl bg-notary-gold hover:bg-notary-hover text-black font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer glow-button"
+                    >
+                        <span>Generate read-only file</span>
+                        <ArrowRight className="w-4 h-4" />
+                    </button>
                 </div>
             )}
-
-            {/* Simple Information Notice */}
-            <div className="flex items-center gap-2 text-xs text-zinc-500 px-1 font-mono">
-                <Info className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
-                <span>Converts document into an uneditable, non-selectable PDF for legal filing.</span>
-            </div>
         </div>
     );
 }

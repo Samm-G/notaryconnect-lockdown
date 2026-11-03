@@ -167,7 +167,7 @@ export async function commitDualArchivalTransaction(
             watermarkApplied: params.watermarkApplied,
             qualityMode: params.qualityMode,
             padesCertified: true,
-            signerName: 'NotaryConnect Secure Document Vault',
+            signerName: 'E-Stamp Sampark',
         },
         r2Storage: {
             bucket: 'kroldon-notary-audit',

@@ -38,3 +38,7 @@ Thumbs.db
 .idea/
 *.dev.vars_worker.js
 _worker.js
+.context
+
+notaryconnect_scraper.py
+output_pages/

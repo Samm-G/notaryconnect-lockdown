@@ -20,16 +20,12 @@ export default function App() {
     const [secondsRemaining, setSecondsRemaining] = useState(0);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    // Whole-screen file drop support
     const [externalFile, setExternalFile] = useState<File | null>(null);
 
-    // Transformation & Archival state machine
     const [isProcessing, setIsProcessing] = useState(false);
     const [telemetry, setTelemetry] = useState<PipelineTelemetryState | null>(null);
     const [receipt, setReceipt] = useState<AuditReceipt | null>(null);
     const [pipelineError, setPipelineError] = useState<string | null>(null);
-
-    // Administrative Audit Inspector Modal state
     const [isInspectorOpen, setIsInspectorOpen] = useState(false);
 
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -37,7 +33,6 @@ export default function App() {
     const hasWarnedExpiryRef = useRef<boolean>(false);
     const { showToast } = useToast();
 
-    // Whole-screen drop trap hook (accepts drops anywhere on the browser window)
     const { isWindowDragging } = useGlobalDropTrap({
         isEnabled: isAuthenticated && !isProcessing && !receipt,
         onFileDrop: (file: File) => {
@@ -68,7 +63,6 @@ export default function App() {
         verifySession();
     }, [verifySession]);
 
-    // Clean memory on window unload
     useEffect(() => {
         return () => {
             if (activeBlobUrlRef.current) {
@@ -77,27 +71,22 @@ export default function App() {
         };
     }, []);
 
-    // Session countdown ticker with 5-minute warning & graceful zero-second auto-lockout
     useEffect(() => {
         if (!isAuthenticated || secondsRemaining <= 0) return;
 
         const interval = setInterval(() => {
             setSecondsRemaining((prev) => {
-                // Trigger 5-Minute Warning Toast (exactly once)
                 if (prev <= 300 && prev > 1 && !hasWarnedExpiryRef.current) {
                     hasWarnedExpiryRef.current = true;
                     showToast({
                         type: 'warning',
                         title: 'Session Expiring Soon',
-                        message: 'Your session will expire in 5 minutes. Please complete active work.',
+                        message: '5 minutes remaining.',
                     });
                 }
 
-                // Graceful 0-Second Lockout Handler
                 if (prev <= 1) {
                     clearInterval(interval);
-
-                    // Abort active processing & flush RAM
                     if (abortControllerRef.current) {
                         abortControllerRef.current.abort();
                     }
@@ -114,7 +103,7 @@ export default function App() {
                     showToast({
                         type: 'error',
                         title: 'Session Expired',
-                        message: 'Your 24-hour session has concluded. Please re-authenticate to continue.',
+                        message: 'Please sign in again.',
                     });
 
                     setIsAuthenticated(false);
@@ -146,7 +135,6 @@ export default function App() {
         }
     };
 
-    // Atomic Pipeline Execution: Render -> PAdES Sign -> R2 Archival -> Direct Stream Download
     const handleDocumentAccepted = async (
         validation: DocumentValidationResult,
         options: ProcessingOptions
@@ -165,12 +153,11 @@ export default function App() {
             currentPage: 0,
             totalPages: validation.pageCount || 1,
             percentage: 5,
-            detailMessage: 'Processing document...',
+            detailMessage: 'Preparing pages...',
             error: null,
         });
 
         try {
-            // 1. Client-Side 300 DPI Rasterization & Watermark Burn-in
             const rasterResult = await executeDocumentLockdown(
                 validation.file,
                 options,
@@ -187,17 +174,15 @@ export default function App() {
                 abortController.signal
             );
 
-            // 2. Server-Side PAdES Sealing
             setTelemetry({
                 stage: 'signing',
                 currentPage: rasterResult.pageCount,
                 totalPages: rasterResult.pageCount,
                 percentage: 88,
-                detailMessage: 'Applying legal digital seal...',
+                detailMessage: 'Applying digital seal...',
                 error: null,
             });
 
-            // 3. Construct Multipart Payload for Edge Archival
             const formData = new FormData();
             formData.append('originalFile', validation.file);
             formData.append(
@@ -211,17 +196,15 @@ export default function App() {
             formData.append('watermarkApplied', String(options.applyWatermark));
             formData.append('qualityMode', options.qualityMode);
 
-            // 4. Server-Side R2 Archival
             setTelemetry({
                 stage: 'archiving',
                 currentPage: rasterResult.pageCount,
                 totalPages: rasterResult.pageCount,
                 percentage: 94,
-                detailMessage: 'Saving compliance record...',
+                detailMessage: 'Finalizing...',
                 error: null,
             });
 
-            // 5. Atomic Request to /api/archive
             const response = await fetch('/api/archive', {
                 method: 'POST',
                 body: formData,
@@ -229,26 +212,26 @@ export default function App() {
             });
 
             if (!response.ok) {
-                let errMessage = 'Archival failed.';
+                let errMessage = 'Conversion failed.';
                 try {
                     const errData = await response.json();
                     errMessage = errData.message || errData.error || errMessage;
                 } catch {
-                    // not JSON
+                    // ignore
                 }
                 throw new Error(errMessage);
             }
 
-            // 6. Capture Compliance Headers
             const auditId = response.headers.get('X-Audit-ID') || crypto.randomUUID();
             const sha256Orig = response.headers.get('X-Audit-SHA256-Original') || 'N/A';
             const sha256Final = response.headers.get('X-Audit-SHA256-Final') || 'N/A';
             const manifestKey = response.headers.get('X-Audit-Manifest-Key') || 'N/A';
 
+            const suffix = import.meta.env.VITE_FILENAME_SUFFIX || '_NC';
             const cleanBaseName = validation.file.name
                 .replace(/[^a-zA-Z0-9._-]/g, '_')
                 .replace(/\.[^/.]+$/, '');
-            const downloadFileName = `${cleanBaseName}_LOCKED_NOTARY.pdf`;
+            const downloadFileName = `${cleanBaseName}${suffix}.pdf`;
 
             const signedPdfBlob = await response.blob();
 
@@ -268,7 +251,6 @@ export default function App() {
 
             setReceipt(newReceipt);
 
-            // 7. Auto-Trigger Immediate Browser Download (Atomic Gate Fulfilled)
             const blobUrl = URL.createObjectURL(signedPdfBlob);
             activeBlobUrlRef.current = blobUrl;
 
@@ -279,7 +261,6 @@ export default function App() {
             downloadLink.click();
             document.body.removeChild(downloadLink);
 
-            // Memory sanitation
             setTimeout(() => {
                 revokeBlobUrl(blobUrl);
                 activeBlobUrlRef.current = null;
@@ -290,15 +271,15 @@ export default function App() {
                 currentPage: rasterResult.pageCount,
                 totalPages: rasterResult.pageCount,
                 percentage: 100,
-                detailMessage: 'Document completed.',
+                detailMessage: 'Completed.',
                 error: null,
             });
         } catch (err: unknown) {
             if (abortController.signal.aborted) {
-                setPipelineError('Process was cancelled.');
+                setPipelineError('Cancelled.');
             } else {
                 setPipelineError(
-                    err instanceof Error ? err.message : 'Transformation and archival failed.'
+                    err instanceof Error ? err.message : 'Conversion failed.'
                 );
             }
         } finally {
@@ -354,9 +335,13 @@ export default function App() {
 
     return (
         <div
-            className={`min-h-screen bg-notary-dark text-notary-light flex flex-col justify-between p-4 sm:p-6 transition-colors ${isWindowDragging ? 'ring-2 ring-notary-yellow/60 ring-inset bg-zinc-950' : ''
+            className={`relative min-h-screen bg-[#070709] text-notary-light flex flex-col justify-between p-4 sm:p-6 overflow-hidden transition-all ${isWindowDragging ? 'ring-2 ring-notary-yellow/70 ring-inset' : ''
                 }`}
         >
+            {/* Subtle Ambient Background Glows */}
+            <div className="pointer-events-none fixed top-[-15%] left-1/2 -translate-x-1/2 w-[550px] h-[350px] bg-notary-yellow/[0.07] rounded-full blur-[130px] z-0" />
+            <div className="pointer-events-none fixed bottom-[-20%] left-1/3 w-[450px] h-[300px] bg-amber-500/[0.04] rounded-full blur-[120px] z-0" />
+
             {/* Header */}
             {isAuthenticated && (
                 <Header
@@ -366,39 +351,36 @@ export default function App() {
                 />
             )}
 
-            {/* Main Workspace Body */}
-            <main className="w-full flex-1 flex flex-col items-center justify-center my-6">
+            {/* Main Frosted Glass Workspace */}
+            <main className="w-full flex-1 flex flex-col items-center justify-center my-6 z-10">
                 {!isAuthenticated ? (
                     <LoginView onSuccess={verifySession} />
                 ) : (
-                    <div className="max-w-xl w-full bg-zinc-950 border border-zinc-800 rounded-lg p-5 sm:p-6 shadow-xl">
-                        {/* Header Title */}
+                    <div className="max-w-lg w-full glass-panel rounded-2xl p-6 sm:p-7">
                         <div className="mb-5">
-                            <h2 className="text-base font-semibold text-white tracking-tight">
-                                Document Lockdown
+                            <h2 className="text-base font-semibold text-white">
+                                Convert to Read-Only PDF
                             </h2>
-                            <p className="text-xs text-zinc-500 mt-0.5">
-                                Upload affidavit, contract, or deed to generate read-only signed copy.
+                            <p className="text-xs text-zinc-400 mt-0.5">
+                                Upload your document to lock and seal it.
                             </p>
                         </div>
 
-                        {/* Error Banner */}
                         {pipelineError && (
-                            <div className="mb-4 p-3 rounded-md bg-zinc-900 border border-red-500/40 text-xs flex items-center justify-between gap-3 text-red-300">
+                            <div className="mb-4 p-3 rounded-xl bg-red-950/40 border border-red-500/30 text-xs flex items-center justify-between gap-3 text-red-200">
                                 <div className="flex items-center gap-2">
                                     <ShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
                                     <span>{pipelineError}</span>
                                 </div>
                                 <button
                                     onClick={handleReset}
-                                    className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs cursor-pointer"
+                                    className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 text-xs cursor-pointer"
                                 >
                                     Dismiss
                                 </button>
                             </div>
                         )}
 
-                        {/* State 1: Dropzone (Idle) */}
                         {!isProcessing && !receipt && (
                             <Dropzone
                                 onDocumentAccepted={handleDocumentAccepted}
@@ -407,7 +389,6 @@ export default function App() {
                             />
                         )}
 
-                        {/* State 2: Telemetry Active (Processing) */}
                         {isProcessing && telemetry && (
                             <TelemetryProgress
                                 telemetry={telemetry}
@@ -416,7 +397,6 @@ export default function App() {
                             />
                         )}
 
-                        {/* State 3: Ready State with Clean Receipt */}
                         {receipt && (
                             <ComplianceReceipt
                                 receipt={receipt}
@@ -428,20 +408,19 @@ export default function App() {
                 )}
             </main>
 
-            {/* Footer */}
-            <footer className="max-w-4xl w-full mx-auto flex items-center justify-between border-t border-zinc-900 pt-4 pb-2 text-xs text-zinc-600 font-mono">
-                <p>NotaryConnect Lockdown v0.1.0 &bull; Strictly Confidential Legal Operations</p>
+            {/* Minimalist Footer */}
+            <footer className="max-w-3xl w-full mx-auto flex items-center justify-between border-t border-white/[0.06] pt-4 pb-1 text-xs text-zinc-500 font-mono z-10">
+                <p>E-Stamp Sampark &bull; v0.1.0</p>
                 {isAuthenticated && (
                     <button
                         onClick={() => setIsInspectorOpen(true)}
-                        className="text-zinc-500 hover:text-zinc-400 hover:underline cursor-pointer transition-colors"
+                        className="text-zinc-500 hover:text-zinc-300 hover:underline cursor-pointer transition-colors"
                     >
-                        Verify Audit Trail
+                        Audit Lookup
                     </button>
                 )}
             </footer>
 
-            {/* Hidden Administrative Chain of Custody Modal */}
             <AuditInspectorModal
                 isOpen={isInspectorOpen}
                 onClose={() => setIsInspectorOpen(false)}

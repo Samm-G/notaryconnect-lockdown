@@ -43,7 +43,7 @@ export function burnWatermarkOntoCanvas(canvas: HTMLCanvasElement): void {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(100, 100, 100, 0.16)';
-    ctx.fillText('NotaryConnect - Confidential', 0, 0);
+    ctx.fillText('E-Stamp Sampark - Confidential', 0, 0);
 
     ctx.restore();
 }

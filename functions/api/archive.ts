@@ -107,10 +107,10 @@ export const onRequestPost = async (
             env.SIGNING_KEY_PEM,
             env.SIGNING_CERT_PEM,
             {
-                signerName: 'NotaryConnect Secure Document Vault',
-                reason: 'Affidavit Non-Repudiation & Lockdown Integrity',
+                signerName: 'E-Stamp Sampark',
+                reason: 'Document Lockdown & Integrity',
                 location: 'Bangalore, India',
-                contactInfo: 'compliance@law.kroldon.app',
+                contactInfo: 'convert.estampsampark.com',
             }
         );
 
