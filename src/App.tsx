@@ -217,7 +217,7 @@ export default function App() {
                     const errData = await response.json();
                     errMessage = errData.message || errData.error || errMessage;
                 } catch {
-                    // ignore
+                    // not json
                 }
                 throw new Error(errMessage);
             }
@@ -362,7 +362,7 @@ export default function App() {
                                 Convert to Read-Only PDF
                             </h2>
                             <p className="text-xs text-zinc-400 mt-0.5">
-                                Upload your document to lock and seal it.
+                                Upload your document to generate an uneditable, sealed copy.
                             </p>
                         </div>
 
@@ -408,7 +408,7 @@ export default function App() {
                 )}
             </main>
 
-            {/* Minimalist Footer */}
+            {/* Minimalist Clean Footer */}
             <footer className="max-w-3xl w-full mx-auto flex items-center justify-between border-t border-white/[0.06] pt-4 pb-1 text-xs text-zinc-500 font-mono z-10">
                 <p>E-Stamp Sampark &bull; v0.1.0</p>
                 {isAuthenticated && (

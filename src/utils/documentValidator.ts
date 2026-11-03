@@ -83,7 +83,7 @@ export async function validateDocument(file: File): Promise<DocumentValidationRe
                     format,
                     pageCount,
                     fileSizeMb,
-                    error: `Document exceeds the ${MAX_PAGE_COUNT}-page limit for standard notary lockdown (Detected: ${pageCount} pages). Please split the document.`,
+                    error: `Document exceeds the ${MAX_PAGE_COUNT}-page limit (Detected: ${pageCount} pages). Please split the document.`,
                     warning: null,
                 };
             }

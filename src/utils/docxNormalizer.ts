@@ -76,7 +76,7 @@ export async function normalizeDocxToCanvases(
         // 4. Enforce configurable MAX_PAGE_COUNT guardrail
         if (totalPages > MAX_PAGE_COUNT) {
             throw new Error(
-                `Word document exceeds the ${MAX_PAGE_COUNT}-page limit for standard notary lockdown (Detected: ${totalPages} pages). Please split the document.`
+                `Word document exceeds the ${MAX_PAGE_COUNT}-page limit (Detected: ${totalPages} pages). Please split the document.`
             );
         }
 

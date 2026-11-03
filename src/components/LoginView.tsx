@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
-import { KeyRound, ShieldAlert, ArrowRight, Loader2 } from 'lucide-react';
+import { ShieldAlert, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
 import type { VerifyResponse } from '../types/auth';
 
 interface LoginViewProps {
@@ -95,7 +95,7 @@ export default function LoginView({ onSuccess }: LoginViewProps) {
             if (response.ok && data.success) {
                 onSuccess();
             } else {
-                setErrorMessage(data.error || 'Invalid code.');
+                setErrorMessage(data.error || 'Invalid authentication code.');
                 if (typeof data.remainingAttempts === 'number') {
                     setRemainingAttempts(data.remainingAttempts);
                 }
@@ -113,14 +113,18 @@ export default function LoginView({ onSuccess }: LoginViewProps) {
     };
 
     return (
-        <div className="max-w-sm w-full mx-auto my-auto glass-panel rounded-2xl p-7 z-10">
+        <div className="max-w-sm w-full mx-auto my-auto glass-panel rounded-2xl p-7 z-10 shadow-2xl">
             <div className="text-center mb-6">
-                <div className="w-12 h-12 mx-auto mb-3 bg-notary-yellow/10 border border-notary-yellow/30 rounded-xl flex items-center justify-center text-notary-yellow shadow-[0_0_20px_rgba(250,204,21,0.2)]">
-                    <KeyRound className="w-6 h-6" />
+                {/* Brand Badge */}
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-notary-yellow/10 border border-notary-yellow/30 text-notary-yellow text-xs font-medium mb-3">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>E-Stamp Sampark</span>
                 </div>
-                <h2 className="text-lg font-semibold text-white">E-Stamp Sampark</h2>
-                <p className="text-xs text-zinc-400 mt-1">
-                    Enter 6-digit authenticator code
+
+                {/* Clear, Simple Title */}
+                <h2 className="text-xl font-bold text-white tracking-tight">Operator Sign In</h2>
+                <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                    Enter the 6-digit code from your authenticator app
                 </p>
             </div>
 
@@ -135,7 +139,7 @@ export default function LoginView({ onSuccess }: LoginViewProps) {
                             </p>
                         ) : remainingAttempts !== null ? (
                             <p className="text-zinc-400 mt-0.5">
-                                {remainingAttempts} attempts left
+                                {remainingAttempts} attempts remaining
                             </p>
                         ) : null}
                     </div>
@@ -164,8 +168,8 @@ export default function LoginView({ onSuccess }: LoginViewProps) {
                             onKeyDown={(e) => handleKeyDown(idx, e)}
                             onPaste={handlePaste}
                             className={`w-11 h-12 text-center font-mono text-lg font-semibold rounded-xl border bg-white/[0.03] text-white transition-all outline-none ${digit
-                                    ? 'border-notary-yellow/80 shadow-[0_0_12px_rgba(250,204,21,0.2)]'
-                                    : 'border-white/10 hover:border-white/20 focus:border-notary-yellow'
+                                ? 'border-notary-yellow/80 shadow-[0_0_12px_rgba(250,204,21,0.25)]'
+                                : 'border-white/10 hover:border-white/20 focus:border-notary-yellow'
                                 } disabled:opacity-40`}
                         />
                     ))}
@@ -187,7 +191,7 @@ export default function LoginView({ onSuccess }: LoginViewProps) {
                         </>
                     ) : (
                         <>
-                            <span>Continue</span>
+                            <span>Verify &amp; Continue</span>
                             <ArrowRight className="w-4 h-4" />
                         </>
                     )}
